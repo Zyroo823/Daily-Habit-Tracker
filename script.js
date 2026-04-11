@@ -1,3 +1,9 @@
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("appContainer").classList.add("hidden");
+    document.getElementById("loginSection").classList.remove("hidden");
+});
+
+
 const STORAGE_KEY = 'daily_habit_tracker_data';
 const SUGGESTIONS = [
     { name: 'Morning Meditation', description: '10 minutes of mindfulness', emoji: '🧘' },
@@ -222,7 +228,7 @@ class HabitTracker {
         this.renderStats();
         this.renderBadges();
         this.renderSuggestions();
-        this.showHeroOrApp();
+        //this.showHeroOrApp();
     }
 
     setupEventListeners() {
@@ -279,8 +285,12 @@ class HabitTracker {
         const heroSection = document.getElementById('heroSection');
         const appContainer = document.getElementById('appContainer');
 
+
+         loginSection.classList.add("hidden");
           heroSection.classList.add('hidden');
     appContainer.classList.remove('hidden');
+
+
     }
 
     startApp() {
@@ -733,7 +743,6 @@ signupFormElement.addEventListener("submit", (e) => {
     const email = document.getElementById("signupEmail").value;
     const pass = document.getElementById("signupPassword").value;
     const confirm = document.getElementById("signupConfirmPassword").value;
-    document.getElementById("heroSection").style.display = "flex";
 
     if (pass !== confirm) {
         showToast("Passwords do not match ❌", "error");
@@ -741,19 +750,21 @@ signupFormElement.addEventListener("submit", (e) => {
     }
 
     localStorage.setItem("user", JSON.stringify({ name, email }));
-
     signupForm.reset();
-
     showToast("Account created! You can login now 🎉", "success");
 
+    // ✅ Hide login section when showing hero
+    loginSection.classList.add("hidden");
     signupForm.classList.add("hidden");
     loginForm.classList.remove("hidden");
+    document.getElementById("heroSection").style.display = "flex";
 });
+
 
 // ===============================
 // AUTO LOGIN (IF SAVED)
 // ===============================
-window.addEventListener("load", () => {
+/*window.addEventListener("load", () => {
     const user = localStorage.getItem("user");
 
     if (user) {
@@ -761,7 +772,7 @@ window.addEventListener("load", () => {
         appContainer.classList.remove("hidden");
     }
 });
-
+*/
 // ===============================
 // TOAST FUNCTION
 // ===============================
