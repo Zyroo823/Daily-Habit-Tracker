@@ -6,19 +6,13 @@
     <meta name="description" content="Daily Habit Tracker - Track your habits, build streaks, and achieve your goals with beautiful gamification">
     <meta name="theme-color" content="#0a0e27">
     <title>Daily Habit Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app" class="min-h-screen bg-background text-foreground">
-        <!-- Hero Section -->
-        <div id="heroSection" class="hero-section">
-            <div class="hero-content">
-                <h1 class="hero-title">Daily Habit Tracker</h1>
-                <p class="hero-subtitle">Simple. Streak Counter. Works Offline.</p>
-                <button id="getStartedBtn" class="cta-button">+ Get Started</button>
-            </div>
-        </div>
 
         <!-- Login Section -->
         <div id="loginSection" class="login-section">
@@ -74,12 +68,214 @@
             </div>
         </div>
 
+        <!-- Hero Section -->
+        <div id="heroSection" class="hero-section">
+            <div class="hero-content">
+                <h1 class="hero-title">Daily Habit Tracker</h1>
+                <p class="hero-subtitle">Simple. Streak Counter. Works Offline.</p>
+                <button id="getStartedBtn" class="cta-button">+ Get Started</button>
+            </div>
+        </div>
+        
+        <!-- Main App Container -->
+        <div class="app-container hidden" id="appContainer">
+            <!-- Sidebar Navigation -->
+            <nav class="sidebar">
+                <div class="sidebar-header">
+                    <h2 class="sidebar-title">Tracker</h2>
+                </div>
+                <ul class="nav-list">
+                    <li>
+                        <button class="nav-item active" data-tab="dashboard">
+                            <span class="nav-icon">📊</span>
+                            <span>Dashboard</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="nav-item" data-tab="stats">
+                            <span class="nav-icon">📈</span>
+                            <span>Stats</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="nav-item" data-tab="settings">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Settings</span>
+                        </button>
+                    </li>
+                    <li>
+                        <button class="nav-item" data-tab="profile">
+                            <span class="nav-icon">👤</span>
+                            <span>Profile</span>
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+
+            <!-- Main Content Area -->
+            <div class="content-area">
+                <!-- Dashboard Tab -->
+                <div id="dashboardTab" class="tab-content active">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="section-title">Dashboard</h2>
+                            <p class="section-subtitle">Track your daily progress</p>
+                        </div>
+                        <button id="addHabitBtn" class="add-habit-btn">+ Add Habit</button>
+                    </div>
+
+                    <!-- Mood Tracker -->
+                    <div id="moodTracker" class="glass-card mood-tracker hidden">
+                        <h3 class="card-title">How are you feeling today?</h3>
+                        <div class="mood-buttons">
+                            <button class="mood-btn" data-mood="1" title="Terrible">😢</button>
+                            <button class="mood-btn" data-mood="2" title="Bad">😕</button>
+                            <button class="mood-btn" data-mood="3" title="Okay">😐</button>
+                            <button class="mood-btn" data-mood="4" title="Good">🙂</button>
+                            <button class="mood-btn" data-mood="5" title="Excellent">😄</button>
+                        </div>
+                    </div>
+
+                    <!-- Habit Suggestions -->
+                    <div id="suggestionsContainer" class="glass-card suggestions-card hidden">
+                        <h3 class="card-title">💡 Suggested Habits</h3>
+                        <div id="suggestionsList" class="suggestions-list"></div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="glass-card empty-state">
+                        <div class="empty-icon">⚡</div>
+                        <h3 class="empty-title">No habits yet</h3>
+                        <p class="empty-subtitle">Create your first habit to get started on your journey to success!</p>
+                        <button id="createFirstHabitBtn" class="cta-button">+ Create First Habit</button>
+                    </div>
+
+                    <!-- Habits Grid -->
+                    <div id="habitsGrid" class="habits-grid hidden"></div>
+                </div>
+
+                <!-- Stats Tab -->
+                <div id="statsTab" class="tab-content">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="section-title">Statistics</h2>
+                            <p class="section-subtitle">Your progress and achievements</p>
+                        </div>
+                    </div>
+
+                    <!-- Weekly Chart -->
+                    <div id="weeklyChart" class="glass-card weekly-chart"></div>
+
+                    <!-- Stats Grid -->
+                    <div id="statsGrid" class="stats-grid"></div>
+
+                    <!-- Badges Section -->
+                    <div id="badgesSection" class="glass-card badges-section">
+                        <h3 class="card-title">🏆 Badges & Achievements</h3>
+                        <div id="badgesList" class="badges-list"></div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settingsTab" class="tab-content">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="section-title">Settings</h2>
+                            <p class="section-subtitle">Customize your experience</p>
+                        </div>
+                    </div>
+
+                    <div class="glass-card settings-panel">
+                        <!-- Notifications -->
+                        <div class="settings-section">
+                            <h3 class="settings-title">🔔 Notifications</h3>
+                            <button id="notificationBtn" class="settings-button">Enable Notifications</button>
+                        </div>
+
+                        <!-- Data Management -->
+                        <div class="settings-section border-top">
+                            <h3 class="settings-title">💾 Data Management</h3>
+                            <div class="button-group">
+                                <button id="exportBtn" class="settings-button">Export Data</button>
+                                <button id="clearBtn" class="settings-button danger">Clear Data</button>
+                                <button id="resetBtn" class="settings-button danger">Reset App</button>
+                            </div>
+                        </div>
+
+                        <!-- About -->
+                        <div class="settings-section border-top">
+                            <h3 class="settings-title">ℹ️ About</h3>
+                            <p class="settings-text">Daily Habit Tracker v1.0</p>
+                            <p class="settings-text">Built with heart for habit builders</p>
+                            <p class="settings-text">Frontend Developer: John Mar Aledon</p>
+                            <p class="settings-text">Backend Developer: Kent Ivan Lubas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="profileTab" class="tab-content">
+                    <div class="tab-header">
+                        <div>
+                            <h2 class="section-title">Profile</h2>
+                            <p class="section-subtitle">Your statistics and achievements</p>
+                        </div>
+                    </div>
+
+                    <div id="profileContent" class="glass-card profile-card"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Habit Modal -->
+    <div id="habitModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Habit</h2>
+                <button id="closeModalBtn" class="close-btn">✕</button>
+            </div>
+            <form id="habitForm" class="modal-form">
+                <div class="form-group">
+                    <label for="habitName">Habit Name</label>
+                    <input type="text" id="habitName" placeholder="e.g., Morning Meditation" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="habitDescription">Description</label>
+                    <input type="text" id="habitDescription" placeholder="e.g., 10 minutes of mindfulness">
+                </div>
+
+                <div class="form-group">
+                    <label for="habitColor">Color</label>
+                    <div class="color-picker">
+                        <input type="color" id="habitColor" value="#7c5cff">
+                        <span id="colorPreview" class="color-preview"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="habitFrequency">Frequency</label>
+                    <select id="habitFrequency">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Create Habit</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 
 
     </div>
 
-
+     <div id="toastContainer" class="toast-container"></div>
 
     <script src="script.js"></script>
 </body>
