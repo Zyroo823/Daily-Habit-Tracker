@@ -1293,3 +1293,153 @@ input, select, textarea {
 .form-divider::before { left: 0; }
 .form-divider::after { right: 0; }
 
+/* ============================================
+   RESPONSIVE BREAKPOINTS 
+   ============================================ */
+
+/* Mobile First - Extra Small Screens (< 480px) */
+@media (max-width: 479px) {
+    :root {
+        --spacing-lg: 1rem;
+        --spacing-xl: 1.25rem;
+        --spacing-2xl: 1.5rem;
+    }
+    
+    .content-area {
+        padding: var(--spacing-md);
+    }
+    
+    .glass-card,
+    .habit-card {
+        padding: var(--spacing-sm);
+        margin-bottom: var(--spacing-md);
+    }
+}
+
+/* Small Mobile (480px - 639px) */
+@media (min-width: 480px) and (max-width: 639px) {
+    .content-area {
+        padding: var(--spacing-lg);
+    }
+}
+
+/* Tablets & Large Mobile Portrait (640px+) */
+@media (min-width: 640px) {
+    .app-container {
+        flex-direction: row;
+    }
+    
+    .sidebar {
+        width: 280px;
+        flex-direction: column;
+        height: 100vh;
+        position: fixed;
+        padding: var(--spacing-lg);
+        border-bottom: none;
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+    }
+    
+    .content-area {
+        margin-left: 280px;
+        padding: var(--spacing-2xl);
+    }
+    
+    .nav-list {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+    
+    .nav-item {
+        justify-content: flex-start;
+        font-size: 1rem;
+        padding: var(--spacing-md) var(--spacing-lg);
+        min-width: auto;
+    }
+    
+    .nav-text {
+        display: block;
+    }
+    
+    .tab-header {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+    
+    .habits-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        display: grid !important;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        display: grid !important;
+    }
+}
+
+/* Tablets Landscape & Small Desktop (768px+) */
+@media (min-width: 768px) {
+    .sidebar {
+        width: 240px;
+    }
+    
+    .content-area {
+        margin-left: 240px;
+    }
+    
+    .mood-buttons {
+        flex-wrap: nowrap;
+    }
+    
+    .mood-btn {
+        flex: 1;
+    }
+}
+
+/* Desktop (1024px+) */
+@media (min-width: 1024px) {
+    .hero-section {
+        min-height: 60vh;
+    }
+    
+    .habits-grid {
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    }
+}
+
+/* Large Desktop (1280px+) */
+@media (min-width: 1280px) {
+    .habits-grid {
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    }
+}
+
+/* Touch Target Improvements */
+@media (hover: none) and (pointer: coarse) {
+    button,
+    .mood-btn,
+    .habit-btn,
+    .close-btn,
+    .cta-button,
+    .nav-item {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .habit-btn {
+        min-height: 48px;
+        min-width: 48px;
+    }
+}
+
+/* Landscape Mobile Fix */
+@media (max-height: 500px) and (orientation: landscape) {
+    .content-area {
+        padding: var(--spacing-md);
+    }
+    
+    .glass-card,
+    .habit-card {
+        padding: var(--spacing-sm);
+    }
+}
