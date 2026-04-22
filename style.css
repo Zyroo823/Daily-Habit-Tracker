@@ -307,6 +307,10 @@ input, select, textarea {
     z-index: 1500;
 }
 
+.sidebar.active {
+    transform: translateX(0);
+}
+
 .sidebar-header {
     padding-bottom: var(--spacing-lg);
     border-bottom: 1px solid var(--border);
@@ -1372,5 +1376,6 @@ input, select, textarea {
 
 .sidebar.active {
     box-shadow: 20px 0 60px rgba(0,0,0,0.4);
+     transform: translateX(0);
 }
 
