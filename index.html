@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    
     <div id="app" class="min-h-screen bg-background text-foreground">
          <!-- Login Section -->
         <div id="loginSection" class="login-section">
@@ -70,7 +71,7 @@
             </div>
         </div>
 
-
+           
         <!-- Hero Section -->
         <div id="heroSection" class="hero-section">
             <div class="hero-content">
@@ -83,6 +84,8 @@
         <!-- Main App Container -->
         <div class="app-container hidden" id="appContainer"class="hidden">
             <!-- Sidebar Navigation -->
+             <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div class="overlay" onclick="toggleSidebar()"></div>
             <nav class="sidebar">
                 <div class="sidebar-header">
                     <h2 class="sidebar-title">Daily Habit Tracker</h2>

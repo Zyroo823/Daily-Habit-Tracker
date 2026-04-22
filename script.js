@@ -4,6 +4,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
+
+
 const STORAGE_KEY = 'daily_habit_tracker_data';
 const SUGGESTIONS = [
     { name: 'Morning Meditation', description: '10 minutes of mindfulness', emoji: '🧘' },
@@ -24,6 +26,42 @@ const BADGES = [
     { id: 'five_habits', name: 'Habit Hero', description: 'Track 5 habits', icon: '🦸', condition: (stats) => stats.totalHabits >= 5 },
     { id: 'consistency', name: 'Consistency King', description: '90% overall completion', icon: '👑', condition: (stats) => stats.overallCompletionRate >= 90 },
 ];
+
+
+function toggleSidebar() {
+    const sidebar = document.querySelector(".sidebar");
+    const overlay = document.querySelector(".overlay");
+    const menuToggle = document.querySelector(".menu-toggle");
+
+    const isOpen = sidebar.classList.toggle("active");
+    overlay.classList.toggle("active");
+
+    // 👇 hide button when sidebar is open
+    if (isOpen != null) {
+        menuToggle.classList.add("hidden");
+    } else {
+        menuToggle.classList.remove("hidden");
+    }
+}
+
+document.querySelectorAll(".nav-item").forEach(item => {
+    item.addEventListener("click", () => {
+        document.querySelector(".sidebar").classList.remove("active");
+        document.querySelector(".overlay").classList.remove("active");
+
+        document.querySelector(".menu-toggle").classList.remove("hidden"); // 👈 restore button
+    });
+});
+
+document.querySelector(".overlay").addEventListener("click", () => {
+    document.querySelector(".sidebar").classList.remove("active");
+    document.querySelector(".overlay").classList.remove("active");
+    document.querySelector(".menu-toggle").classList.remove("hidden");
+});
+
+
+
+
 
 // ============================================
 // State Management
