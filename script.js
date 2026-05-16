@@ -751,24 +751,70 @@ loginToggleBtn.addEventListener("click", () => {
 });
 
 // ===============================
-// FAKE LOGIN
+// VALIDATION FUNCTIONS
+// ===============================
+
+function validateEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+function validatePassword(password) {
+    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
+    return passwordRegex.test(password);
+}
+
+function getPasswordStrength(password) {
+    if (password.length < 8) return { score: 1, message: "Too short (min 8 characters)" };
+    if (!/[a-z]/.test(password)) return { score: 2, message: "Add lowercase letters" };
+    if (!/[A-Z]/.test(password)) return { score: 3, message: "Add uppercase letters" };
+    if (!/\d/.test(password)) return { score: 4, message: "Add numbers" };
+    if (!/[@$!%*?&]/.test(password)) return { score: 5, message: "Add special characters for stronger security" };
+    return { score: 6, message: "Strong password" };
+}
+
+// ===============================
+// LOGIN
 // ===============================
 loginFormElement.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    const email = document.getElementById("loginEmail").value;
+    const email = document.getElementById("loginEmail").value.trim();
     const password = document.getElementById("loginPassword").value;
 
-    if (email && password) {
-        localStorage.setItem("user", JSON.stringify({ email }));
-
-        loginSection.classList.add("hidden");
-        appContainer.classList.remove("hidden");
-
-        showToast("Login successful 🚀", "success");
-    } else {
-        showToast("Please fill all fields", "error");
+    // Validate email format
+    if (!validateEmail(email)) {
+        showToast("Please enter a valid email address", "error");
+        return;
     }
+
+    // Validate password
+    if (!password) {
+        showToast("Please enter your password", "error");
+        return;
+    }
+
+    // Check if user exists
+    const storedUser = localStorage.getItem("user_" + email);
+    if (!storedUser) {
+        showToast("No account found with this email. Please sign up.", "error");
+        return;
+    }
+
+    // Validate password
+    const userData = JSON.parse(storedUser);
+    if (userData.password !== password) {
+        showToast("Incorrect password. Please try again.", "error");
+        return;
+    }
+
+    // Login successful
+    localStorage.setItem("currentUser", JSON.stringify({ email, name: userData.name }));
+    loginSection.classList.add("hidden");
+    appContainer.classList.remove("hidden");
+
+    showToast("Login successful 🚀", "success");
 });
 
 // ===============================
@@ -777,25 +823,58 @@ loginFormElement.addEventListener("submit", (e) => {
 signupFormElement.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    const name = document.getElementById("signupName").value;
-    const email = document.getElementById("signupEmail").value;
+    const name = document.getElementById("signupName").value.trim();
+    const email = document.getElementById("signupEmail").value.trim();
     const pass = document.getElementById("signupPassword").value;
     const confirm = document.getElementById("signupConfirmPassword").value;
 
+    // Validate name
+    if (name.length < 2) {
+        showToast("Name must be at least 2 characters", "error");
+        return;
+    }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+        showToast("Please enter a valid email address", "error");
+        return;
+    }
+
+    // Validate password strength
+    if (!validatePassword(pass)) {
+        const strength = getPasswordStrength(pass);
+        showToast(strength.message, "error");
+        return;
+    }
+
+    // Validate password confirmation
     if (pass !== confirm) {
         showToast("Passwords do not match ❌", "error");
         return;
     }
 
-    localStorage.setItem("user", JSON.stringify({ name, email }));
+    // Check if user already exists
+    const existingUser = localStorage.getItem("user_" + email);
+    if (existingUser) {
+        showToast("An account with this email already exists", "error");
+        return;
+    }
+
+    // Store user with password
+    const userData = {
+        name,
+        email,
+        password: pass, // In production, this should be hashed
+        createdAt: new Date().toISOString()
+    };
+    localStorage.setItem("user_" + email, JSON.stringify(userData));
+
     signupForm.reset();
     showToast("Account created! You can login now 🎉", "success");
 
-    // ✅ Hide login section when showing hero
-    loginSection.classList.add("hidden");
+    // Switch to login form
     signupForm.classList.add("hidden");
     loginForm.classList.remove("hidden");
-    document.getElementById("heroSection").style.display = "flex";
 });
 
 
