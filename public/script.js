@@ -1,6 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("appContainer").classList.add("hidden");
     document.getElementById("loginSection").classList.remove("hidden");
+    
+    // Add sign out button to profile tab
+    addSignOutButton();
 });
 
 
@@ -68,10 +71,12 @@ document.querySelector(".overlay").addEventListener("click", () => {
 // ============================================
 
 class HabitTracker {
-    constructor() {
+    constructor(userId) {
+        this.userId = userId;
         this.habits = [];
         this.currentTab = 'dashboard';
         this.editingHabitId = null;
+        this.isLoading = false;
         this.loadData();
         this.initializeApp();
     }
@@ -80,86 +85,130 @@ class HabitTracker {
     // Data Management
     // ============================================
 
-    loadData() {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                this.habits = JSON.parse(stored);
-                this.resetDailyHabits();
-            } catch (e) {
-                console.error('Error loading data:', e);
-                this.habits = [];
-            }
+    async loadData() {
+        this.isLoading = true;
+        this.showLoadingState();
+        try {
+            const snapshot = await db.collection('users').doc(this.userId).collection('habits').get();
+            this.habits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            await this.resetDailyHabits();
+        } catch (error) {
+            console.error('Error loading data from Firestore:', error);
+            this.showToast('Error loading data', 'error');
+            this.habits = [];
+        } finally {
+            this.isLoading = false;
+            this.hideLoadingState();
         }
     }
 
-    saveData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.habits));
+    async saveData() {
+        try {
+            const batch = db.batch();
+            const habitsRef = db.collection('users').doc(this.userId).collection('habits');
+            
+            // Delete all existing habits for this user
+            const existingSnapshot = await habitsRef.get();
+            existingSnapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            
+            // Add all current habits
+            this.habits.forEach(habit => {
+                const habitRef = habitsRef.doc(habit.id);
+                batch.set(habitRef, habit);
+            });
+            
+            await batch.commit();
+        } catch (error) {
+            console.error('Error saving data to Firestore:', error);
+            this.showToast('Error saving data', 'error');
+        }
     }
 
-    resetDailyHabits() {
+    async resetDailyHabits() {
         const today = new Date().toISOString().split('T')[0];
+        let needsSave = false;
         this.habits.forEach(habit => {
             if (habit.frequency === 'daily' && habit.lastResetDate !== today) {
                 habit.lastResetDate = today;
                 habit.completedToday = false;
+                needsSave = true;
             }
         });
-        this.saveData();
+        if (needsSave) {
+            await this.saveData();
+        }
     }
 
     // ============================================
     // Habit Operations
     // ============================================
 
-    addHabit(name, description, color, frequency) {
-        const habit = {
-            id: Date.now().toString(),
-            name,
-            description,
-            color,
-            frequency,
-            completedToday: false,
-            completedDates: [],
-            streak: 0,
-            longestStreak: 0,
-            createdDate: new Date().toISOString().split('T')[0],
-            lastResetDate: new Date().toISOString().split('T')[0],
-        };
-        this.habits.push(habit);
-        this.saveData();
-        this.showToast(`Habit "${name}" created!`, 'success');
-        return habit;
-    }
-
-    deleteHabit(habitId) {
-        const habit = this.habits.find(h => h.id === habitId);
-        if (habit && confirm(`Delete "${habit.name}"?`)) {
-            this.habits = this.habits.filter(h => h.id !== habitId);
-            this.saveData();
-            this.showToast(`Habit deleted`, 'success');
+    async addHabit(name, description, color, frequency) {
+        try {
+            const habit = {
+                id: Date.now().toString(),
+                name,
+                description,
+                color,
+                frequency,
+                completedToday: false,
+                completedDates: [],
+                streak: 0,
+                longestStreak: 0,
+                createdDate: new Date().toISOString().split('T')[0],
+                lastResetDate: new Date().toISOString().split('T')[0],
+            };
+            this.habits.push(habit);
+            await this.saveData();
+            this.showToast(`Habit "${name}" created!`, 'success');
+            return habit;
+        } catch (error) {
+            console.error('Error adding habit:', error);
+            this.showToast('Error creating habit', 'error');
+            throw error;
         }
     }
 
-    toggleHabit(habitId) {
-        const habit = this.habits.find(h => h.id === habitId);
-        if (!habit) return;
-
-        const today = new Date().toISOString().split('T')[0];
-        habit.completedToday = !habit.completedToday;
-
-        if (habit.completedToday) {
-            if (!habit.completedDates.includes(today)) {
-                habit.completedDates.push(today);
+    async deleteHabit(habitId) {
+        try {
+            const habit = this.habits.find(h => h.id === habitId);
+            if (habit && confirm(`Delete "${habit.name}"?`)) {
+                this.habits = this.habits.filter(h => h.id !== habitId);
+                await this.saveData();
+                this.showToast(`Habit deleted`, 'success');
             }
-            this.updateStreak(habit);
-            this.showToast(`Great! Keep it up! 🔥`, 'success');
-        } else {
-            habit.completedDates = habit.completedDates.filter(d => d !== today);
-            this.updateStreak(habit);
+        } catch (error) {
+            console.error('Error deleting habit:', error);
+            this.showToast('Error deleting habit', 'error');
         }
+    }
 
-        this.saveData();
+    async toggleHabit(habitId) {
+        try {
+            const habit = this.habits.find(h => h.id === habitId);
+            if (!habit) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            habit.completedToday = !habit.completedToday;
+
+            if (habit.completedToday) {
+                if (!habit.completedDates.includes(today)) {
+                    habit.completedDates.push(today);
+                }
+                this.updateStreak(habit);
+                this.showToast(`Great! Keep it up! 🔥`, 'success');
+            } else {
+                habit.completedDates = habit.completedDates.filter(d => d !== today);
+                this.updateStreak(habit);
+            }
+
+            await this.saveData();
+        } catch (error) {
+            console.error('Error toggling habit:', error);
+            this.showToast('Error updating habit', 'error');
+        }
     }
 
     updateStreak(habit) {
@@ -282,6 +331,18 @@ class HabitTracker {
         document.getElementById('addHabitBtn').addEventListener('click', () => this.openHabitModal());
         document.getElementById('createFirstHabitBtn').addEventListener('click', () => this.openHabitModal());
 
+        // Suggestions
+        document.addEventListener('click', async (e) => {
+            if (e.target.closest('.suggestion-item')) {
+                const item = e.target.closest('.suggestion-item');
+                const name = item.querySelector('.suggestion-name').textContent;
+                const desc = item.querySelector('.suggestion-desc').textContent;
+                await this.addHabit(name, desc, '#7c5cff', 'daily');
+                this.renderHabits();
+                this.renderStats();
+            }
+        });
+
         // Modal
         document.getElementById('closeModalBtn').addEventListener('click', () => this.closeHabitModal());
         document.getElementById('cancelBtn').addEventListener('click', () => this.closeHabitModal());
@@ -300,17 +361,6 @@ class HabitTracker {
             btn.addEventListener('click', (e) => this.selectMood(e.target.closest('.mood-btn')));
         });
 
-        // Suggestions
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.suggestion-item')) {
-                const item = e.target.closest('.suggestion-item');
-                const name = item.querySelector('.suggestion-name').textContent;
-                const desc = item.querySelector('.suggestion-desc').textContent;
-                this.addHabit(name, desc, '#7c5cff', 'daily');
-                this.renderHabits();
-                this.renderStats();
-            }
-        });
 
         // Settings
         document.getElementById('notificationBtn').addEventListener('click', () => this.requestNotification());
@@ -384,14 +434,14 @@ class HabitTracker {
             const checkbox = card.querySelector('.checkbox-toggle');
             const deleteBtn = card.querySelector('.delete-btn');
 
-            checkbox.addEventListener('click', () => {
-                this.toggleHabit(habitId);
+            checkbox.addEventListener('click', async () => {
+                await this.toggleHabit(habitId);
                 this.renderHabits();
                 this.renderStats();
             });
 
-            deleteBtn.addEventListener('click', () => {
-                this.deleteHabit(habitId);
+            deleteBtn.addEventListener('click', async () => {
+                await this.deleteHabit(habitId);
                 this.renderHabits();
                 this.renderStats();
                 this.showHeroOrApp();
@@ -455,41 +505,6 @@ class HabitTracker {
         }
 
         return Math.round((completed / 7) * 100);
-    }
-
-    renderStats() {
-        const stats = this.getStats();
-        const grid = document.getElementById('statsGrid');
-
-        grid.innerHTML = `
-            <div class="glass-card stat-card">
-                <div class="stat-label">Completed Today</div>
-                <div class="stat-value">${stats.completedToday}/${stats.totalHabits}</div>
-            </div>
-            <div class="glass-card stat-card">
-                <div class="stat-label">Weekly Completion</div>
-                <div class="stat-value">${stats.weeklyCompletionRate}%</div>
-            </div>
-            <div class="glass-card stat-card">
-                <div class="stat-label">Longest Streak</div>
-                <div class="stat-value">${stats.longestStreak} 🔥</div>
-            </div>
-            <div class="glass-card stat-card">
-                <div class="stat-label">Level</div>
-                <div class="stat-value">${stats.currentLevel.level}</div>
-            </div>
-            <div class="glass-card stat-card">
-                <div class="stat-label">Points</div>
-                <div class="stat-value">${stats.points}</div>
-            </div>
-            <div class="glass-card stat-card">
-                <div class="stat-label">Overall Completion</div>
-                <div class="stat-value">${stats.overallCompletionRate}%</div>
-            </div>
-        `;
-
-        this.renderWeeklyChart();
-        this.renderProfileStats(stats);
     }
 
     renderWeeklyChart() {
@@ -590,6 +605,18 @@ class HabitTracker {
         btn.classList.add('selected');
     }
 
+    showLoadingState() {
+        const grid = document.getElementById('habitsGrid');
+        if (grid) {
+            grid.innerHTML = '<div class="loading">Loading...</div>';
+        }
+    }
+
+    hideLoadingState() {
+        const loading = document.querySelector('.loading');
+        if (loading) loading.remove();
+    }
+
     // ============================================
     // Modal Management
     // ============================================
@@ -612,7 +639,7 @@ class HabitTracker {
         document.getElementById('habitModal').classList.add('hidden');
     }
 
-    handleHabitSubmit(e) {
+    async handleHabitSubmit(e) {
         e.preventDefault();
 
         const name = document.getElementById('habitName').value.trim();
@@ -625,7 +652,7 @@ class HabitTracker {
             return;
         }
 
-        this.addHabit(name, description, color, frequency);
+        await this.addHabit(name, description, color, frequency);
         this.closeHabitModal();
         this.renderHabits();
         this.renderStats();
@@ -677,10 +704,10 @@ class HabitTracker {
         this.showToast('Data exported successfully!', 'success');
     }
 
-    clearData() {
+    async clearData() {
         if (confirm('Are you sure? This will delete all habits but keep the app running.')) {
             this.habits = [];
-            this.saveData();
+            await this.saveData();
             this.showToast('All habits cleared', 'success');
             this.renderHabits();
             this.renderStats();
@@ -717,9 +744,7 @@ class HabitTracker {
 // Initialize App
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    new HabitTracker();
-});
+// HabitTracker is now initialized by Firebase auth state listener
 
 
 // ===============================
@@ -775,9 +800,9 @@ function getPasswordStrength(password) {
 }
 
 // ===============================
-// LOGIN
+// LOGIN WITH FIREBASE
 // ===============================
-loginFormElement.addEventListener("submit", (e) => {
+loginFormElement.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const email = document.getElementById("loginEmail").value.trim();
@@ -795,32 +820,32 @@ loginFormElement.addEventListener("submit", (e) => {
         return;
     }
 
-    // Check if user exists
-    const storedUser = localStorage.getItem("user_" + email);
-    if (!storedUser) {
-        showToast("No account found with this email. Please sign up.", "error");
-        return;
+    try {
+        // Sign in with Firebase
+        const userCredential = await auth.signInWithEmailAndPassword(email, password);
+        showToast("Login successful 🚀", "success");
+    } catch (error) {
+        console.error("Login error:", error);
+        switch (error.code) {
+            case 'auth/user-not-found':
+                showToast("No account found with this email. Please sign up.", "error");
+                break;
+            case 'auth/wrong-password':
+                showToast("Incorrect password. Please try again.", "error");
+                break;
+            case 'auth/invalid-email':
+                showToast("Invalid email address.", "error");
+                break;
+            default:
+                showToast("Login failed. Please try again.", "error");
+        }
     }
-
-    // Validate password
-    const userData = JSON.parse(storedUser);
-    if (userData.password !== password) {
-        showToast("Incorrect password. Please try again.", "error");
-        return;
-    }
-
-    // Login successful
-    localStorage.setItem("currentUser", JSON.stringify({ email, name: userData.name }));
-    loginSection.classList.add("hidden");
-    appContainer.classList.remove("hidden");
-
-    showToast("Login successful 🚀", "success");
 });
 
 // ===============================
-// SIGNUP
+// SIGNUP WITH FIREBASE
 // ===============================
-signupFormElement.addEventListener("submit", (e) => {
+signupFormElement.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const name = document.getElementById("signupName").value.trim();
@@ -853,44 +878,91 @@ signupFormElement.addEventListener("submit", (e) => {
         return;
     }
 
-    // Check if user already exists
-    const existingUser = localStorage.getItem("user_" + email);
-    if (existingUser) {
-        showToast("An account with this email already exists", "error");
-        return;
+    try {
+        // Create user with Firebase Auth
+        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+        
+        // Update user profile with display name
+        await userCredential.user.updateProfile({ displayName: name });
+        
+        // Store additional user data in Firestore
+        await db.collection('users').doc(userCredential.user.uid).set({
+            name: name,
+            email: email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        signupForm.reset();
+        showToast("Account created! 🎉", "success");
+    } catch (error) {
+        console.error("Signup error:", error);
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                showToast("An account with this email already exists", "error");
+                break;
+            case 'auth/weak-password':
+                showToast("Password is too weak. Please use a stronger password.", "error");
+                break;
+            case 'auth/invalid-email':
+                showToast("Invalid email address.", "error");
+                break;
+            default:
+                showToast("Signup failed. Please try again.", "error");
+        }
     }
-
-    // Store user with password
-    const userData = {
-        name,
-        email,
-        password: pass, // In production, this should be hashed
-        createdAt: new Date().toISOString()
-    };
-    localStorage.setItem("user_" + email, JSON.stringify(userData));
-
-    signupForm.reset();
-    showToast("Account created! You can login now 🎉", "success");
-
-    // Switch to login form
-    signupForm.classList.add("hidden");
-    loginForm.classList.remove("hidden");
 });
 
 
 
 // ===============================
-// AUTO LOGIN (IF SAVED)
+// FIREBASE AUTH STATE LISTENER
 // ===============================
-/*window.addEventListener("load", () => {
-    const user = localStorage.getItem("user");
-
+auth.onAuthStateChanged(async (user) => {
     if (user) {
+        // User is signed in
         loginSection.classList.add("hidden");
         appContainer.classList.remove("hidden");
+        
+        // Initialize or load habit tracker for this user
+        if (!window.habitTracker) {
+            window.habitTracker = new HabitTracker(user.uid);
+        }
+    } else {
+        // User is signed out
+        loginSection.classList.remove("hidden");
+        appContainer.classList.add("hidden");
+        
+        // Clear habit tracker instance
+        if (window.habitTracker) {
+            window.habitTracker = null;
+        }
     }
 });
-*/
+
+// ===============================
+// SIGN OUT FUNCTION
+// ===============================
+async function signOut() {
+    try {
+        await auth.signOut();
+        showToast("Signed out successfully", "success");
+    } catch (error) {
+        console.error("Sign out error:", error);
+        showToast("Sign out failed", "error");
+    }
+}
+
+// Add sign out button to profile tab
+function addSignOutButton() {
+    const profileTab = document.getElementById('profileTab');
+    const signOutBtn = document.createElement('button');
+    signOutBtn.className = 'settings-button danger';
+    signOutBtn.textContent = 'Sign Out';
+    signOutBtn.addEventListener('click', signOut);
+    
+    const profileContent = document.getElementById('profileContent');
+    profileContent.appendChild(signOutBtn);
+}
 // ===============================
 // TOAST FUNCTION
 // ===============================
