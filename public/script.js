@@ -1,977 +1,935 @@
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("appContainer").classList.add("hidden");
-    document.getElementById("loginSection").classList.remove("hidden");
-    
-    // Add sign out button to profile tab
-    addSignOutButton();
+// ============================================
+// DAILY HABIT TRACKER PRO - JAVASCRIPT
+// ============================================
+
+// ============================================
+// STATE MANAGEMENT
+// ============================================
+
+let currentUser = null;
+let habits = [];
+let editingHabitId = null;
+let unsubscribeHabits = null;
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupEventListeners();
+    setupFirebaseAuthListener();
+    updateGreeting();
+    setInterval(updateGreeting, 60000);
 });
 
+// ============================================
+// EVENT LISTENERS
+// ============================================
 
+function setupEventListeners() {
+    // Auth Forms
+    document.getElementById('loginFormElement').addEventListener('submit', handleLogin);
+    document.getElementById('signupFormElement').addEventListener('submit', handleSignup);
+    document.getElementById('signupToggleBtn').addEventListener('click', toggleAuthForm);
+    document.getElementById('loginToggleBtn').addEventListener('click', toggleAuthForm);
 
+    // Mobile Menu
+    const menuToggle = document.getElementById('menuToggle');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', toggleSidebar);
+    }
 
-const STORAGE_KEY = 'daily_habit_tracker_data';
-const SUGGESTIONS = [
-    { name: 'Morning Meditation', description: '10 minutes of mindfulness', emoji: '🧘' },
-    { name: 'Exercise', description: '30 minutes of physical activity', emoji: '💪' },
-    { name: 'Read', description: 'Read for at least 20 minutes', emoji: '📚' },
-    { name: 'Hydration', description: 'Drink 8 glasses of water', emoji: '💧' },
-    { name: 'Journaling', description: 'Write down your thoughts', emoji: '📝' },
-    { name: 'Sleep', description: 'Get 7-8 hours of quality sleep', emoji: '😴' },
-    { name: 'Healthy Eating', description: 'Eat nutritious meals', emoji: '🥗' },
-    { name: 'Learning', description: 'Learn something new today', emoji: '🧠' },
-];
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(btn => {
+        btn.addEventListener('click', handleTabChange);
+    });
 
-const BADGES = [
-    { id: 'first_habit', name: 'First Step', description: 'Create your first habit', icon: '🚀', condition: (stats) => stats.totalHabits >= 1 },
-    { id: 'week_streak', name: 'Week Warrior', description: '7-day streak', icon: '🔥', condition: (stats) => stats.longestStreak >= 7 },
-    { id: 'month_streak', name: 'Month Master', description: '30-day streak', icon: '⭐', condition: (stats) => stats.longestStreak >= 30 },
-    { id: 'perfect_week', name: 'Perfect Week', description: '100% completion for a week', icon: '💯', condition: (stats) => stats.weeklyCompletionRate >= 100 },
-    { id: 'five_habits', name: 'Habit Hero', description: 'Track 5 habits', icon: '🦸', condition: (stats) => stats.totalHabits >= 5 },
-    { id: 'consistency', name: 'Consistency King', description: '90% overall completion', icon: '👑', condition: (stats) => stats.overallCompletionRate >= 90 },
-];
+    // Habit Management
+    document.getElementById('addHabitBtn').addEventListener('click', openHabitModal);
+    document.getElementById('createFirstHabitBtn').addEventListener('click', openHabitModal);
+    document.getElementById('habitForm').addEventListener('submit', handleAddHabit);
+    document.getElementById('closeModalBtn').addEventListener('click', closeHabitModal);
+    document.getElementById('cancelBtn').addEventListener('click', closeHabitModal);
+    document.getElementById('reminderToggle').addEventListener('change', toggleReminderTime);
 
+    // Settings
+    document.getElementById('logoutBtn').addEventListener('click', showLogoutConfirm);
+    document.getElementById('confirmLogoutBtn').addEventListener('click', handleLogout);
+    document.getElementById('cancelLogoutBtn').addEventListener('click', closeLogoutModal);
+    document.getElementById('notificationBtn').addEventListener('click', requestNotifications);
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('clearBtn').addEventListener('click', clearAllData);
+    document.getElementById('resetBtn').addEventListener('click', resetApp);
+
+    // Sidebar
+    document.getElementById('habitModal').addEventListener('click', (e) => {
+        if (e.target.id === 'habitModal') closeHabitModal();
+    });
+
+    document.getElementById('logoutModal').addEventListener('click', (e) => {
+        if (e.target.id === 'logoutModal') closeLogoutModal();
+    });
+}
+
+// ============================================
+// AUTHENTICATION
+// ============================================
+
+function toggleAuthForm() {
+    document.getElementById('loginForm').classList.toggle('hidden');
+    document.getElementById('signupForm').classList.toggle('hidden');
+}
+
+function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if (!email || !password) {
+        showToast('Please fill in all fields', 'error');
+        return;
+    }
+
+    auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            showToast('Welcome back!', 'success');
+        })
+        .catch((error) => {
+            console.error('Login error:', error);
+            showToast(error.message, 'error');
+        });
+}
+
+function handleSignup(e) {
+    e.preventDefault();
+    const name = document.getElementById('signupName').value;
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+    const confirmPassword = document.getElementById('signupConfirmPassword').value;
+
+    if (!name || !email || !password || !confirmPassword) {
+        showToast('Please fill in all fields', 'error');
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+
+    if (password.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+    }
+
+    auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            // Create user profile in Firestore
+            return db.collection('users').doc(userCredential.user.uid).set({
+                name: name,
+                email: email,
+                avatar: name.split(' ').map(n => n[0]).join('').toUpperCase(),
+                createdAt: new Date().toISOString(),
+            });
+        })
+        .then(() => {
+            showToast('Account created successfully!', 'success');
+        })
+        .catch((error) => {
+            console.error('Signup error:', error);
+            showToast(error.message, 'error');
+        });
+}
+
+function handleLogout() {
+    auth.signOut()
+        .then(() => {
+            showToast('Logged out successfully', 'success');
+        })
+        .catch((error) => {
+            console.error('Logout error:', error);
+            showToast(error.message, 'error');
+        });
+}
+
+// ============================================
+// FIREBASE AUTH LISTENER
+// ============================================
+
+function setupFirebaseAuthListener() {
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            // User is signed in
+            loadUserProfile(user.uid);
+            loadHabits(user.uid);
+            showApp();
+        } else {
+            // User is signed out
+            currentUser = null;
+            habits = [];
+            if (unsubscribeHabits) {
+                unsubscribeHabits();
+                unsubscribeHabits = null;
+            }
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('appContainer').classList.add('hidden');
+            document.getElementById('logoutModal').classList.add('hidden');
+            document.getElementById('loginFormElement').reset();
+            document.getElementById('signupFormElement').reset();
+        }
+    });
+}
+
+function loadUserProfile(uid) {
+    db.collection('users').doc(uid).get()
+        .then((doc) => {
+            if (doc.exists) {
+                currentUser = {
+                    id: uid,
+                    ...doc.data()
+                };
+                updateUserDisplay();
+            } else {
+                // User profile doesn't exist in Firestore (existing user from localStorage)
+                // Create profile from Firebase Auth data
+                const user = auth.currentUser;
+                if (user) {
+                    const email = user.email || '';
+                    const name = user.displayName || email.split('@')[0];
+                    const avatar = name.split(' ').map(n => n[0]).join('').toUpperCase();
+                    
+                    const userProfile = {
+                        name: name,
+                        email: email,
+                        avatar: avatar,
+                        createdAt: new Date().toISOString(),
+                    };
+                    
+                    // Save to Firestore
+                    db.collection('users').doc(uid).set(userProfile)
+                        .then(() => {
+                            currentUser = {
+                                id: uid,
+                                ...userProfile
+                            };
+                            updateUserDisplay();
+                        })
+                        .catch((error) => {
+                            console.error('Error creating user profile:', error);
+                            // Still set currentUser even if Firestore save fails
+                            currentUser = {
+                                id: uid,
+                                ...userProfile
+                            };
+                            updateUserDisplay();
+                        });
+                }
+            }
+        })
+        .catch((error) => {
+            console.error('Error loading user profile:', error);
+        });
+}
+
+function loadHabits(uid) {
+    // Real-time listener for habits
+    unsubscribeHabits = db.collection('users').doc(uid).collection('habits')
+        .onSnapshot((snapshot) => {
+            habits = [];
+            snapshot.forEach((doc) => {
+                habits.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+            renderHabits();
+            updateStats();
+        }, (error) => {
+            console.error('Error loading habits:', error);
+        });
+}
+
+// ============================================
+// USER DATA MANAGEMENT
+// ============================================
+
+function updateUserDisplay() {
+    if (currentUser) {
+        document.getElementById('userName').textContent = currentUser.name;
+        document.getElementById('userEmail').textContent = currentUser.email;
+        document.getElementById('userAvatar').textContent = currentUser.avatar;
+    }
+}
+
+function showApp() {
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
+    updateUserDisplay();
+    renderHabits();
+    updateStats();
+    renderProfile();
+
+    // Sets the baseline navbar text when a user opens up the dashboard
+    const mobilePageTitle = document.getElementById('mobilePageTitle');
+    if (mobilePageTitle) {
+        mobilePageTitle.textContent = 'Dashboard';
+    }
+}
+
+// ============================================
+// TAB NAVIGATION
+// ============================================
+
+function handleTabChange(e) {
+    const tabName = e.currentTarget.dataset.tab;
+
+    // Update nav items
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    e.currentTarget.classList.add('active');
+
+    // Dynamically updates mobile top row bar title text to match current tab view
+    const spanElement = e.currentTarget.querySelector('span');
+    const mobilePageTitle = document.getElementById('mobilePageTitle');
+    if (spanElement && mobilePageTitle) {
+        mobilePageTitle.textContent = spanElement.textContent.trim();
+    }
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(tabName + 'Tab').classList.add('active');
+
+    // Close sidebar on mobile
+    closeSidebar();
+
+    // Update content based on tab
+    if (tabName === 'stats') {
+        renderStats();
+    } else if (tabName === 'profile') {
+        renderProfile();
+    }
+}
 
 function toggleSidebar() {
-    const sidebar = document.querySelector(".sidebar");
-    const overlay = document.querySelector(".overlay");
-    const menuToggle = document.querySelector(".menu-toggle");
+    document.querySelector('.sidebar').classList.toggle('active');
+    document.querySelector('.overlay').classList.toggle('active');
+}
 
-    const isOpen = sidebar.classList.toggle("active");
-    overlay.classList.toggle("active");
+function closeSidebar() {
+    document.querySelector('.sidebar').classList.remove('active');
+    document.querySelector('.overlay').classList.remove('active');
+}
 
-    // 👇 hide button when sidebar is open
-    if (isOpen != null) {
-        menuToggle.classList.add("hidden");
+// ============================================
+// HABIT MANAGEMENT
+// ============================================
+
+function openHabitModal() {
+    editingHabitId = null;
+    document.getElementById('habitForm').reset();
+    document.getElementById('modalTitle').textContent = 'Add New Habit';
+    document.getElementById('reminderToggle').checked = false;
+    document.getElementById('reminderTimeGroup').classList.add('hidden');
+    document.getElementById('habitColor').value = '#7c5cff';
+    updateColorPreview();
+    document.getElementById('habitModal').classList.remove('hidden');
+}
+
+function closeHabitModal() {
+    document.getElementById('habitModal').classList.add('hidden');
+    editingHabitId = null;
+}
+
+function handleAddHabit(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('habitName').value;
+    const description = document.getElementById('habitDescription').value;
+    const color = document.getElementById('habitColor').value;
+    const frequency = document.getElementById('habitFrequency').value;
+    const reminderEnabled = document.getElementById('reminderToggle').checked;
+    const reminderTime = document.getElementById('reminderTime').value;
+
+    if (!name.trim()) {
+        showToast('Habit name is required', 'error');
+        return;
+    }
+
+    if (editingHabitId) {
+        // Update existing habit in Firestore
+        db.collection('users').doc(currentUser.id).collection('habits').doc(editingHabitId).update({
+            name,
+            description,
+            color,
+            frequency,
+            reminderEnabled,
+            reminderTime,
+        })
+        .then(() => {
+            showToast('Habit updated successfully!', 'success');
+        })
+        .catch((error) => {
+            console.error('Error updating habit:', error);
+            showToast(error.message, 'error');
+        });
     } else {
-        menuToggle.classList.remove("hidden");
+        // Create new habit in Firestore
+        db.collection('users').doc(currentUser.id).collection('habits').add({
+            name,
+            description,
+            color,
+            frequency,
+            reminderEnabled,
+            reminderTime,
+            streak: 0,
+            completedDates: [],
+            createdAt: new Date().toISOString(),
+        })
+        .then(() => {
+            showToast('Habit created successfully!', 'success');
+        })
+        .catch((error) => {
+            console.error('Error creating habit:', error);
+            showToast(error.message, 'error');
+        });
+    }
+
+    closeHabitModal();
+}
+
+function deleteHabit(id) {
+    if (confirm('Are you sure you want to delete this habit?')) {
+        db.collection('users').doc(currentUser.id).collection('habits').doc(id).delete()
+            .then(() => {
+                showToast('Habit deleted', 'success');
+            })
+            .catch((error) => {
+                console.error('Error deleting habit:', error);
+                showToast(error.message, 'error');
+            });
     }
 }
 
-document.querySelectorAll(".nav-item").forEach(item => {
-    item.addEventListener("click", () => {
-        document.querySelector(".sidebar").classList.remove("active");
-        document.querySelector(".overlay").classList.remove("active");
+function toggleHabitCompletion(id) {
+    const today = new Date().toISOString().split('T')[0];
+    const habit = habits.find(h => h.id === id);
 
-        document.querySelector(".menu-toggle").classList.remove("hidden"); // 👈 restore button
+    if (!habit) {
+        return;
+    }
+
+    let updatedCompletedDates;
+    if (habit.completedDates.includes(today)) {
+        updatedCompletedDates = habit.completedDates.filter(d => d !== today);
+    } else {
+        updatedCompletedDates = [...habit.completedDates, today];
+    }
+
+    // Update streak based on new completion dates
+    const newStreak = calculateStreak(updatedCompletedDates);
+
+    db.collection('users').doc(currentUser.id).collection('habits').doc(id).update({
+        completedDates: updatedCompletedDates,
+        streak: newStreak,
+    })
+    .then(() => {
+        // Real-time listener will handle UI update
+    })
+    .catch((error) => {
+        console.error('Error updating habit completion:', error);
+        showToast(error.message, 'error');
     });
-});
+}
 
-document.querySelector(".overlay").addEventListener("click", () => {
-    document.querySelector(".sidebar").classList.remove("active");
-    document.querySelector(".overlay").classList.remove("active");
-    document.querySelector(".menu-toggle").classList.remove("hidden");
-});
+function calculateStreak(completedDates) {
+    let streak = 0;
+    const today = new Date();
 
+    for (let i = 0; i < 365; i++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - i);
+        const dateStr = checkDate.toISOString().split('T')[0];
 
-
-
-
-// ============================================
-// State Management
-// ============================================
-
-class HabitTracker {
-    constructor(userId) {
-        this.userId = userId;
-        this.habits = [];
-        this.currentTab = 'dashboard';
-        this.editingHabitId = null;
-        this.isLoading = false;
-        this.loadData();
-        this.initializeApp();
-    }
-
-    // ============================================
-    // Data Management
-    // ============================================
-
-    async loadData() {
-        this.isLoading = true;
-        this.showLoadingState();
-        try {
-            const snapshot = await db.collection('users').doc(this.userId).collection('habits').get();
-            this.habits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            await this.resetDailyHabits();
-        } catch (error) {
-            console.error('Error loading data from Firestore:', error);
-            this.showToast('Error loading data', 'error');
-            this.habits = [];
-        } finally {
-            this.isLoading = false;
-            this.hideLoadingState();
+        if (completedDates.includes(dateStr)) {
+            streak++;
+        } else if (i > 0) {
+            break;
         }
     }
 
-    async saveData() {
-        try {
-            const batch = db.batch();
-            const habitsRef = db.collection('users').doc(this.userId).collection('habits');
-            
-            // Delete all existing habits for this user
-            const existingSnapshot = await habitsRef.get();
-            existingSnapshot.docs.forEach(doc => {
-                batch.delete(doc.ref);
-            });
-            
-            // Add all current habits
-            this.habits.forEach(habit => {
-                const habitRef = habitsRef.doc(habit.id);
-                batch.set(habitRef, habit);
-            });
-            
-            await batch.commit();
-        } catch (error) {
-            console.error('Error saving data to Firestore:', error);
-            this.showToast('Error saving data', 'error');
-        }
+    return streak;
+}
+
+function renderHabits() {
+    const habitsGrid = document.getElementById('habitsGrid');
+    const emptyState = document.getElementById('emptyState');
+
+    if (habits.length === 0) {
+        habitsGrid.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
     }
 
-    async resetDailyHabits() {
-        const today = new Date().toISOString().split('T')[0];
-        let needsSave = false;
-        this.habits.forEach(habit => {
-            if (habit.frequency === 'daily' && habit.lastResetDate !== today) {
-                habit.lastResetDate = today;
-                habit.completedToday = false;
-                needsSave = true;
-            }
-        });
-        if (needsSave) {
-            await this.saveData();
-        }
-    }
+    habitsGrid.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+    habitsGrid.innerHTML = '';
 
-    // ============================================
-    // Habit Operations
-    // ============================================
+    const today = new Date().toISOString().split('T')[0];
 
-    async addHabit(name, description, color, frequency) {
-        try {
-            const habit = {
-                id: Date.now().toString(),
-                name,
-                description,
-                color,
-                frequency,
-                completedToday: false,
-                completedDates: [],
-                streak: 0,
-                longestStreak: 0,
-                createdDate: new Date().toISOString().split('T')[0],
-                lastResetDate: new Date().toISOString().split('T')[0],
-            };
-            this.habits.push(habit);
-            await this.saveData();
-            this.showToast(`Habit "${name}" created!`, 'success');
-            return habit;
-        } catch (error) {
-            console.error('Error adding habit:', error);
-            this.showToast('Error creating habit', 'error');
-            throw error;
-        }
-    }
-
-    async deleteHabit(habitId) {
-        try {
-            const habit = this.habits.find(h => h.id === habitId);
-            if (habit && confirm(`Delete "${habit.name}"?`)) {
-                this.habits = this.habits.filter(h => h.id !== habitId);
-                await this.saveData();
-                this.showToast(`Habit deleted`, 'success');
-            }
-        } catch (error) {
-            console.error('Error deleting habit:', error);
-            this.showToast('Error deleting habit', 'error');
-        }
-    }
-
-    async toggleHabit(habitId) {
-        try {
-            const habit = this.habits.find(h => h.id === habitId);
-            if (!habit) return;
-
-            const today = new Date().toISOString().split('T')[0];
-            habit.completedToday = !habit.completedToday;
-
-            if (habit.completedToday) {
-                if (!habit.completedDates.includes(today)) {
-                    habit.completedDates.push(today);
-                }
-                this.updateStreak(habit);
-                this.showToast(`Great! Keep it up! 🔥`, 'success');
-            } else {
-                habit.completedDates = habit.completedDates.filter(d => d !== today);
-                this.updateStreak(habit);
-            }
-
-            await this.saveData();
-        } catch (error) {
-            console.error('Error toggling habit:', error);
-            this.showToast('Error updating habit', 'error');
-        }
-    }
-
-    updateStreak(habit) {
-        let streak = 0;
-        const today = new Date();
-
-        for (let i = 0; i < 365; i++) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            const dateStr = date.toISOString().split('T')[0];
-
-            if (habit.completedDates.includes(dateStr)) {
-                streak++;
-            } else if (i > 0) {
-                break;
-            }
-        }
-
-        habit.streak = streak;
-        if (streak > habit.longestStreak) {
-            habit.longestStreak = streak;
-        }
-    }
-
-    // ============================================
-    // Statistics
-    // ============================================
-
-    getStats() {
-        const today = new Date().toISOString().split('T')[0];
+    habits.forEach(habit => {
+        const isCompletedToday = habit.completedDates.includes(today);
         const weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-        const weekStartStr = weekStart.toISOString().split('T')[0];
 
-        let completedToday = 0;
-        let weeklyCompletions = 0;
-        let totalPossible = 0;
-        let longestStreak = 0;
-
-        this.habits.forEach(habit => {
-            if (habit.completedToday) completedToday++;
-            longestStreak = Math.max(longestStreak, habit.longestStreak);
-
-            // Weekly calculation
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(weekStart);
-                date.setDate(date.getDate() + i);
-                const dateStr = date.toISOString().split('T')[0];
-                totalPossible++;
-                if (habit.completedDates.includes(dateStr)) {
-                    weeklyCompletions++;
-                }
+        let weekCompleted = 0;
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + i);
+            const dateStr = date.toISOString().split('T')[0];
+            if (habit.completedDates.includes(dateStr)) {
+                weekCompleted++;
             }
-        });
-
-        const weeklyCompletionRate = totalPossible > 0 ? Math.round((weeklyCompletions / totalPossible) * 100) : 0;
-        const overallCompletionRate = this.calculateOverallCompletion();
-
-        return {
-            totalHabits: this.habits.length,
-            completedToday,
-            weeklyCompletionRate,
-            overallCompletionRate,
-            longestStreak,
-            currentLevel: this.calculateLevel(),
-            points: this.calculatePoints(),
-        };
-    }
-
-    calculateLevel() {
-        const points = this.calculatePoints();
-        if (points >= 1000) return { level: 5, name: 'Legend', color: '#FFD700' };
-        if (points >= 500) return { level: 4, name: 'Master', color: '#7c5cff' };
-        if (points >= 250) return { level: 3, name: 'Expert', color: '#00d9ff' };
-        if (points >= 100) return { level: 2, name: 'Intermediate', color: '#7c5cff' };
-        return { level: 1, name: 'Novice', color: '#a0aec0' };
-    }
-
-    calculatePoints() {
-        return this.habits.reduce((total, habit) => {
-            return total + (habit.longestStreak * 10) + (habit.completedDates.length * 5);
-        }, 0);
-    }
-
-    calculateOverallCompletion() {
-        if (this.habits.length === 0) return 0;
-        const totalDays = this.habits.reduce((sum, habit) => sum + habit.completedDates.length, 0);
-        const maxDays = this.habits.length * 365;
-        return Math.round((totalDays / maxDays) * 100);
-    }
-
-    getUnlockedBadges() {
-        const stats = this.getStats();
-        return BADGES.filter(badge => badge.condition(stats));
-    }
-
-    // ============================================
-    // UI Rendering
-    // ============================================
-
-    initializeApp() {
-        this.setupEventListeners();
-        this.renderHabits();
-        this.renderStats();
-        this.renderBadges();
-        this.renderSuggestions();
-        //this.showHeroOrApp();
-    }
-
-    setupEventListeners() {
-        // Navigation
-        document.querySelectorAll('.nav-item').forEach(btn => {
-            btn.addEventListener('click', (e) => this.switchTab(e.target.closest('.nav-item').dataset.tab));
-        });
-
-        // Hero
-        document.getElementById('getStartedBtn').addEventListener('click', () => this.startApp());
-
-        // Add Habit
-        document.getElementById('addHabitBtn').addEventListener('click', () => this.openHabitModal());
-        document.getElementById('createFirstHabitBtn').addEventListener('click', () => this.openHabitModal());
-
-        // Suggestions
-        document.addEventListener('click', async (e) => {
-            if (e.target.closest('.suggestion-item')) {
-                const item = e.target.closest('.suggestion-item');
-                const name = item.querySelector('.suggestion-name').textContent;
-                const desc = item.querySelector('.suggestion-desc').textContent;
-                await this.addHabit(name, desc, '#7c5cff', 'daily');
-                this.renderHabits();
-                this.renderStats();
-            }
-        });
-
-        // Modal
-        document.getElementById('closeModalBtn').addEventListener('click', () => this.closeHabitModal());
-        document.getElementById('cancelBtn').addEventListener('click', () => this.closeHabitModal());
-        document.getElementById('habitForm').addEventListener('submit', (e) => this.handleHabitSubmit(e));
-        document.getElementById('habitModal').addEventListener('click', (e) => {
-            if (e.target.id === 'habitModal') this.closeHabitModal();
-        });
-
-        // Color picker
-        document.getElementById('habitColor').addEventListener('input', (e) => {
-            document.getElementById('colorPreview').style.backgroundColor = e.target.value;
-        });
-
-        // Mood tracker
-        document.querySelectorAll('.mood-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.selectMood(e.target.closest('.mood-btn')));
-        });
-
-
-        // Settings
-        document.getElementById('notificationBtn').addEventListener('click', () => this.requestNotification());
-        document.getElementById('exportBtn').addEventListener('click', () => this.exportData());
-        document.getElementById('clearBtn').addEventListener('click', () => this.clearData());
-        document.getElementById('resetBtn').addEventListener('click', () => this.resetApp());
-    }
-
-    showHeroOrApp() {
-        const heroSection = document.getElementById('heroSection');
-        const appContainer = document.getElementById('appContainer');
-
-
-         loginSection.classList.add("hidden");
-          heroSection.classList.add('hidden');
-    appContainer.classList.remove('hidden');
-
-
-    }
-
-    startApp() {
-        document.getElementById('heroSection').classList.add('hidden');
-        document.getElementById('appContainer').classList.remove('hidden');
-        this.openHabitModal();
-    }
-
-    switchTab(tabName) {
-        this.currentTab = tabName;
-
-        // Update nav items
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.toggle('active', item.dataset.tab === tabName);
-        });
-
-        // Update tab content
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        document.getElementById(tabName + 'Tab').classList.add('active');
-
-        // Refresh stats if needed
-        if (tabName === 'stats') {
-            this.renderStats();
-        }
-    }
-
-    renderHabits() {
-        const grid = document.getElementById('habitsGrid');
-        const emptyState = document.getElementById('emptyState');
-        const moodTracker = document.getElementById('moodTracker');
-        const suggestionsContainer = document.getElementById('suggestionsContainer');
-
-        if (this.habits.length === 0) {
-            grid.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-            moodTracker.classList.remove('hidden');
-            suggestionsContainer.classList.remove('hidden');
-            return;
         }
 
-        grid.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-        moodTracker.classList.add('hidden');
-        suggestionsContainer.classList.add('hidden');
+        const weeklyRate = Math.round((weekCompleted / 7) * 100);
 
-        grid.innerHTML = this.habits.map(habit => this.createHabitCard(habit)).join('');
+        const card = document.createElement('div');
+        card.className = `habit-card ${isCompletedToday ? 'completed' : ''}`;
+        card.style.borderLeftColor = habit.color;
 
-        // Add event listeners to habit cards
-        document.querySelectorAll('[data-habit-id]').forEach(card => {
-            const habitId = card.dataset.habitId;
-            const checkbox = card.querySelector('.checkbox-toggle');
-            const deleteBtn = card.querySelector('.delete-btn');
-
-            checkbox.addEventListener('click', async () => {
-                await this.toggleHabit(habitId);
-                this.renderHabits();
-                this.renderStats();
-            });
-
-            deleteBtn.addEventListener('click', async () => {
-                await this.deleteHabit(habitId);
-                this.renderHabits();
-                this.renderStats();
-                this.showHeroOrApp();
-            });
-        });
-    }
-
-    createHabitCard(habit) {
-        const today = new Date().toISOString().split('T')[0];
-        const isCompletedToday = habit.completedDates.includes(today);
-        const weeklyRate = this.getWeeklyCompletionRate(habit.id);
-
-        return `
-            <div class="habit-card" data-habit-id="${habit.id}">
-                <div class="habit-header">
-                    <div class="habit-info">
-                        <div class="habit-name">${habit.name}</div>
-                        <div class="habit-description">${habit.description}</div>
-                    </div>
-                    <div class="habit-actions">
-                        <button class="habit-btn delete-btn" title="Delete">🗑️</button>
-                    </div>
+        card.innerHTML = `
+            <div class="habit-header">
+                <div>
+                    <h3 class="habit-title">${habit.name}</h3>
+                    ${habit.description ? `<p class="habit-description">${habit.description}</p>` : ''}
                 </div>
+                <button class="habit-delete-btn" onclick="deleteHabit('${habit.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
 
-                <div class="streak-container">
-                    <span class="streak-flame">🔥</span>
-                    <span class="streak-number">${habit.streak}</span>
-                    <span class="streak-text">day streak</span>
+            <div class="habit-streak">
+                <i class="fas fa-fire"></i>
+                <span class="habit-streak-count">${habit.streak}</span>
+                <span>day streak</span>
+            </div>
+
+            <div class="habit-progress">
+                <div class="habit-progress-label">
+                    <span>This week</span>
+                    <span style="color: var(--accent-cyan);">${weeklyRate}%</span>
                 </div>
-
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${weeklyRate}%"></div>
-                </div>
-                <div class="progress-text">${weeklyRate}% this week</div>
-
-                <div class="checkbox-toggle ${isCompletedToday ? 'completed' : ''}">
-                    <div class="checkbox ${isCompletedToday ? 'checked' : ''}">
-                        ${isCompletedToday ? '✓' : ''}
-                    </div>
-                    <div class="checkbox-label">
-                        ${isCompletedToday ? 'Completed today!' : 'Mark as done'}
-                    </div>
+                <div class="habit-progress-bar">
+                    <div class="habit-progress-fill" style="width: ${weeklyRate}%"></div>
                 </div>
             </div>
+
+            ${habit.reminderEnabled ? `
+                <div class="habit-reminder">
+                    <i class="fas fa-clock"></i>
+                    <span>Reminder at ${habit.reminderTime}</span>
+                </div>
+            ` : ''}
+
+            <button class="habit-toggle-btn ${isCompletedToday ? 'completed' : ''}" onclick="toggleHabitCompletion('${habit.id}')">
+                <div class="habit-checkbox ${isCompletedToday ? 'checked' : ''}">
+                    ${isCompletedToday ? '<i class="fas fa-check"></i>' : ''}
+                </div>
+                <span>${isCompletedToday ? 'Completed today!' : 'Mark as done'}</span>
+            </button>
         `;
+
+        habitsGrid.appendChild(card);
+    });
+
+    updateStats();
+}
+
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
+
+function calculateWeeklyCompletionRate() {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    let weekCompleted = 0;
+    let weekTotal = 0;
+
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        habits.forEach(habit => {
+            weekTotal++;
+            if (habit.completedDates.includes(dateStr)) {
+                weekCompleted++;
+            }
+        });
     }
 
-    getWeeklyCompletionRate(habitId) {
-        const habit = this.habits.find(h => h.id === habitId);
-        if (!habit) return 0;
+    return weekTotal > 0 ? Math.round((weekCompleted / weekTotal) * 100) : 0;
+}
 
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+function calculateOverallCompletionRate() {
+    const totalDays = habits.length > 0 ? 30 : 1;
+    let totalCompleted = 0;
+    for (let i = 0; i < totalDays; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+
+        habits.forEach(habit => {
+            if (habit.completedDates.includes(dateStr)) {
+                totalCompleted++;
+            }
+        });
+    }
+
+    return totalDays > 0 ? Math.round((totalCompleted / (habits.length * totalDays)) * 100) : 0;
+}
+
+// ============================================
+// STATISTICS
+// ============================================
+
+function updateStats() {
+    const today = new Date().toISOString().split('T')[0];
+    const completedToday = habits.filter(h => h.completedDates.includes(today)).length;
+    const totalHabits = habits.length;
+
+    document.getElementById('completedToday').textContent = completedToday;
+    document.getElementById('totalHabits').textContent = totalHabits;
+    document.getElementById('totalHabitsCard').textContent = totalHabits;
+
+    const longestStreak = Math.max(...habits.map(h => h.streak), 0);
+    document.getElementById('longestStreakCard').textContent = longestStreak;
+
+    const progressPercent = totalHabits > 0 ? (completedToday / totalHabits) * 100 : 0;
+    document.getElementById('progressFill').style.width = progressPercent + '%';
+}
+
+function renderStats() {
+    const today = new Date().toISOString().split('T')[0];
+    const completedToday = habits.filter(h => h.completedDates.includes(today)).length;
+    const totalHabits = habits.length;
+
+    const weeklyCompletionRate = calculateWeeklyCompletionRate();
+    const overallCompletionRate = calculateOverallCompletionRate();
+    const longestStreak = Math.max(...habits.map(h => h.streak), 0);
+
+    // Calculate level and points
+    const totalPoints = habits.reduce((sum, h) => sum + h.streak * 10, 0);
+    const currentLevel = Math.floor(totalPoints / 100) + 1;
+
+    const statsGrid = document.getElementById('statsGrid');
+    statsGrid.innerHTML = `
+        <div class="glass-card">
+            <div class="stat-label"><i class="fas fa-zap"></i> Completed Today</div>
+            <div class="stat-value">${completedToday}/${totalHabits}</div>
+        </div>
+        <div class="glass-card">
+            <div class="stat-label"><i class="fas fa-chart-line"></i> Weekly Rate</div>
+            <div class="stat-value">${weeklyCompletionRate}%</div>
+        </div>
+        <div class="glass-card">
+            <div class="stat-label"><i class="fas fa-fire"></i> Longest Streak</div>
+            <div class="stat-value">${longestStreak}</div>
+        </div>
+        <div class="glass-card">
+            <div class="stat-label"><i class="fas fa-trophy"></i> Level</div>
+            <div class="stat-value">${currentLevel}</div>
+        </div>
+    `;
+
+    // Render weekly chart
+    renderWeeklyChart();
+
+    // Render badges
+    renderBadges(longestStreak, totalHabits, overallCompletionRate);
+}
+
+function renderWeeklyChart() {
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const data = [];
+
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(weekStart);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
 
         let completed = 0;
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(weekStart);
-            date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
+        habits.forEach(habit => {
             if (habit.completedDates.includes(dateStr)) completed++;
-        }
-
-        return Math.round((completed / 7) * 100);
-    }
-
-    renderWeeklyChart() {
-        const chart = document.getElementById('weeklyChart');
-        const weekStart = new Date();
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        let chartHTML = '<h3 class="card-title">Weekly Overview</h3><div class="chart-container">';
-
-        for (let i = 0; i < 7; i++) {
-            const date = new Date(weekStart);
-            date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
-
-            let completed = 0;
-            this.habits.forEach(habit => {
-                if (habit.completedDates.includes(dateStr)) completed++;
-            });
-
-            const rate = this.habits.length > 0 ? (completed / this.habits.length) * 100 : 0;
-            const height = Math.max(rate, 5);
-
-            chartHTML += `
-                <div class="chart-bar">
-                    <div class="bar" style="height: ${height}px;" title="${completed}/${this.habits.length}"></div>
-                    <div class="bar-label">${days[i]}</div>
-                    <div class="bar-percentage">${Math.round(rate)}%</div>
-                </div>
-            `;
-        }
-
-        chartHTML += '</div>';
-        chart.innerHTML = chartHTML;
-    }
-
-    renderBadges() {
-        const badgesList = document.getElementById('badgesList');
-        const unlockedBadges = this.getUnlockedBadges();
-
-        badgesList.innerHTML = BADGES.map(badge => {
-            const unlocked = unlockedBadges.some(b => b.id === badge.id);
-            return `
-                <div class="badge ${unlocked ? 'unlocked' : ''}">
-                    <div class="badge-icon">${badge.icon}</div>
-                    <div class="badge-name">${badge.name}</div>
-                    <div class="badge-desc">${badge.description}</div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    renderSuggestions() {
-        const list = document.getElementById('suggestionsList');
-        list.innerHTML = SUGGESTIONS.map(suggestion => `
-            <div class="suggestion-item">
-                <span class="suggestion-emoji">${suggestion.emoji}</span>
-                <div class="suggestion-text">
-                    <div class="suggestion-name">${suggestion.name}</div>
-                    <div class="suggestion-desc">${suggestion.description}</div>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    renderProfileStats(stats) {
-        const profileContent = document.getElementById('profileContent');
-        profileContent.innerHTML = `
-            <div class="profile-stat">
-                <span class="profile-stat-label">Level</span>
-                <span class="profile-stat-value">${stats.currentLevel.level} - ${stats.currentLevel.name}</span>
-            </div>
-            <div class="profile-stat">
-                <span class="profile-stat-label">Total Points</span>
-                <span class="profile-stat-value">${stats.points}</span>
-            </div>
-            <div class="profile-stat">
-                <span class="profile-stat-label">Total Habits</span>
-                <span class="profile-stat-value">${stats.totalHabits}</span>
-            </div>
-            <div class="profile-stat">
-                <span class="profile-stat-label">Longest Streak</span>
-                <span class="profile-stat-value">${stats.longestStreak} 🔥</span>
-            </div>
-            <div class="profile-stat">
-                <span class="profile-stat-label">Badges Unlocked</span>
-                <span class="profile-stat-value">${this.getUnlockedBadges().length}/${BADGES.length}</span>
-            </div>
-            <div class="profile-stat">
-                <span class="profile-stat-label">Overall Completion</span>
-                <span class="profile-stat-value">${stats.overallCompletionRate}%</span>
-            </div>
-        `;
-    }
-
-    selectMood(btn) {
-        document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-    }
-
-    showLoadingState() {
-        const grid = document.getElementById('habitsGrid');
-        if (grid) {
-            grid.innerHTML = '<div class="loading">Loading...</div>';
-        }
-    }
-
-    hideLoadingState() {
-        const loading = document.querySelector('.loading');
-        if (loading) loading.remove();
-    }
-
-    // ============================================
-    // Modal Management
-    // ============================================
-
-    openHabitModal() {
-        const modal = document.getElementById('habitModal');
-        const form = document.getElementById('habitForm');
-        const title = document.getElementById('modalTitle');
-
-        form.reset();
-        title.textContent = 'Add New Habit';
-        this.editingHabitId = null;
-        document.getElementById('colorPreview').style.backgroundColor = '#7c5cff';
-
-        modal.classList.remove('hidden');
-        document.getElementById('habitName').focus();
-    }
-
-    closeHabitModal() {
-        document.getElementById('habitModal').classList.add('hidden');
-    }
-
-    async handleHabitSubmit(e) {
-        e.preventDefault();
-
-        const name = document.getElementById('habitName').value.trim();
-        const description = document.getElementById('habitDescription').value.trim();
-        const color = document.getElementById('habitColor').value;
-        const frequency = document.getElementById('habitFrequency').value;
-
-        if (!name) {
-            this.showToast('Please enter a habit name', 'error');
-            return;
-        }
-
-        await this.addHabit(name, description, color, frequency);
-        this.closeHabitModal();
-        this.renderHabits();
-        this.renderStats();
-        this.showHeroOrApp();
-    }
-
-    // ============================================
-    // Settings
-    // ============================================
-
-    requestNotification() {
-        if ('Notification' in window) {
-            if (Notification.permission === 'granted') {
-                new Notification('Daily Habit Tracker', {
-                    body: 'You have habits to complete today! 🔥',
-                    icon: '📊',
-                });
-            } else if (Notification.permission !== 'denied') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        new Notification('Notifications enabled!', {
-                            body: 'You will receive daily reminders',
-                            icon: '📊',
-                        });
-                    }
-                });
-            }
-        }
-    }
-
-    exportData() {
-        const data = {
-            habits: this.habits,
-            exportDate: new Date().toISOString(),
-            version: '1.0',
-        };
-
-        const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `habit-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        this.showToast('Data exported successfully!', 'success');
-    }
-
-    async clearData() {
-        if (confirm('Are you sure? This will delete all habits but keep the app running.')) {
-            this.habits = [];
-            await this.saveData();
-            this.showToast('All habits cleared', 'success');
-            this.renderHabits();
-            this.renderStats();
-            this.showHeroOrApp();
-        }
-    }
-
-    resetApp() {
-        if (confirm('Are you sure? This will reset the entire app to its initial state.')) {
-            localStorage.clear();
-            location.reload();
-        }
-    }
-
-    // ============================================
-    // Notifications
-    // ============================================
-
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.textContent = message;
-
-        container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
-    }
-}
-
-// ============================================
-// Initialize App
-// ============================================
-
-// HabitTracker is now initialized by Firebase auth state listener
-
-
-// ===============================
-// ELEMENTS
-// ===============================
-const loginSection = document.getElementById("loginSection");
-const appContainer = document.getElementById("appContainer");
-
-const loginForm = document.getElementById("loginForm");
-const signupForm = document.getElementById("signupForm");
-
-const signupToggleBtn = document.getElementById("signupToggleBtn");
-const loginToggleBtn = document.getElementById("loginToggleBtn");
-
-const loginFormElement = document.getElementById("loginFormElement");
-const signupFormElement = document.getElementById("signupFormElement");
-
-// ===============================
-// TOGGLE FORMS
-// ===============================
-signupToggleBtn.addEventListener("click", () => {
-    loginForm.classList.add("hidden");
-    signupForm.classList.remove("hidden");
-});
-
-loginToggleBtn.addEventListener("click", () => {
-    signupForm.classList.add("hidden");
-    loginForm.classList.remove("hidden");
-});
-
-// ===============================
-// VALIDATION FUNCTIONS
-// ===============================
-
-function validateEmail(email) {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-}
-
-function validatePassword(password) {
-    // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
-    return passwordRegex.test(password);
-}
-
-function getPasswordStrength(password) {
-    if (password.length < 8) return { score: 1, message: "Too short (min 8 characters)" };
-    if (!/[a-z]/.test(password)) return { score: 2, message: "Add lowercase letters" };
-    if (!/[A-Z]/.test(password)) return { score: 3, message: "Add uppercase letters" };
-    if (!/\d/.test(password)) return { score: 4, message: "Add numbers" };
-    if (!/[@$!%*?&]/.test(password)) return { score: 5, message: "Add special characters for stronger security" };
-    return { score: 6, message: "Strong password" };
-}
-
-// ===============================
-// LOGIN WITH FIREBASE
-// ===============================
-loginFormElement.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const email = document.getElementById("loginEmail").value.trim();
-    const password = document.getElementById("loginPassword").value;
-
-    // Validate email format
-    if (!validateEmail(email)) {
-        showToast("Please enter a valid email address", "error");
-        return;
-    }
-
-    // Validate password
-    if (!password) {
-        showToast("Please enter your password", "error");
-        return;
-    }
-
-    try {
-        // Sign in with Firebase
-        const userCredential = await auth.signInWithEmailAndPassword(email, password);
-        showToast("Login successful 🚀", "success");
-    } catch (error) {
-        console.error("Login error:", error);
-        switch (error.code) {
-            case 'auth/user-not-found':
-                showToast("No account found with this email. Please sign up.", "error");
-                break;
-            case 'auth/wrong-password':
-                showToast("Incorrect password. Please try again.", "error");
-                break;
-            case 'auth/invalid-email':
-                showToast("Invalid email address.", "error");
-                break;
-            default:
-                showToast("Login failed. Please try again.", "error");
-        }
-    }
-});
-
-// ===============================
-// SIGNUP WITH FIREBASE
-// ===============================
-signupFormElement.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const name = document.getElementById("signupName").value.trim();
-    const email = document.getElementById("signupEmail").value.trim();
-    const pass = document.getElementById("signupPassword").value;
-    const confirm = document.getElementById("signupConfirmPassword").value;
-
-    // Validate name
-    if (name.length < 2) {
-        showToast("Name must be at least 2 characters", "error");
-        return;
-    }
-
-    // Validate email format
-    if (!validateEmail(email)) {
-        showToast("Please enter a valid email address", "error");
-        return;
-    }
-
-    // Validate password strength
-    if (!validatePassword(pass)) {
-        const strength = getPasswordStrength(pass);
-        showToast(strength.message, "error");
-        return;
-    }
-
-    // Validate password confirmation
-    if (pass !== confirm) {
-        showToast("Passwords do not match ❌", "error");
-        return;
-    }
-
-    try {
-        // Create user with Firebase Auth
-        const userCredential = await auth.createUserWithEmailAndPassword(email, pass);
-        
-        // Update user profile with display name
-        await userCredential.user.updateProfile({ displayName: name });
-        
-        // Store additional user data in Firestore
-        await db.collection('users').doc(userCredential.user.uid).set({
-            name: name,
-            email: email,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
 
-        signupForm.reset();
-        showToast("Account created! 🎉", "success");
-    } catch (error) {
-        console.error("Signup error:", error);
-        switch (error.code) {
-            case 'auth/email-already-in-use':
-                showToast("An account with this email already exists", "error");
-                break;
-            case 'auth/weak-password':
-                showToast("Password is too weak. Please use a stronger password.", "error");
-                break;
-            case 'auth/invalid-email':
-                showToast("Invalid email address.", "error");
-                break;
-            default:
-                showToast("Signup failed. Please try again.", "error");
-        }
+        const maxHeight = habits.length > 0 ? (completed / habits.length) * 150 : 0;
+
+        data.push({
+            day: days[i],
+            completed,
+            height: Math.max(maxHeight, 10),
+        });
     }
-});
 
+    const chartContainer = document.querySelector('.weekly-chart');
+    chartContainer.innerHTML = `
+        <h3 class="card-title"><i class="fas fa-chart-bar"></i> Weekly Overview</h3>
+        <div class="chart-container">
+            ${data.map(d => `
+                <div class="chart-bar">
+                    <div class="chart-bar-fill" style="height: ${d.height}px;" title="${d.completed} completed"></div>
+                    <div class="chart-bar-label">${d.day}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
 
+function renderBadges(longestStreak, totalHabits, overallCompletionRate) {
+    const badgeDefinitions = [
+        { 
+            id: 'week_warrior',
+            name: 'Week Warrior', 
+            icon: 'fa-medal', 
+            desc: '7 Day Streak',
+            unlocked: longestStreak >= 7 
+        },
+        { 
+            id: 'month_master',
+            name: 'Month Master', 
+            icon: 'fa-star', 
+            desc: '30 Day Streak',
+            unlocked: longestStreak >= 30 
+        },
+        { 
+            id: 'habit_master',
+            name: 'Habit Master', 
+            icon: 'fa-bullseye', 
+            desc: 'Track 5+ Habits',
+            unlocked: totalHabits >= 5 
+        },
+        { 
+            id: 'consistency_pro',
+            name: 'Consistency Pro', 
+            icon: 'fa-bolt', 
+            desc: '80%+ Completion',
+            unlocked: overallCompletionRate >= 80 
+        }
+    ];
 
-// ===============================
-// FIREBASE AUTH STATE LISTENER
-// ===============================
-auth.onAuthStateChanged(async (user) => {
-    if (user) {
-        // User is signed in
-        loginSection.classList.add("hidden");
-        appContainer.classList.remove("hidden");
-        
-        // Initialize or load habit tracker for this user
-        if (!window.habitTracker) {
-            window.habitTracker = new HabitTracker(user.uid);
+    const badgesList = document.getElementById('badgesList');
+    
+    badgesList.innerHTML = badgeDefinitions.map(badge => `
+        <div class="badge-card ${badge.unlocked ? 'unlocked' : 'locked'}">
+            <div class="badge-icon-wrapper">
+                <i class="fas ${badge.icon}"></i>
+            </div>
+            <div class="badge-info">
+                <span class="badge-name">${badge.name}</span>
+                <span class="badge-desc">${badge.desc}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============================================
+// PROFILE
+// ============================================
+
+function renderProfile() {
+    const totalHabits = habits.length;
+    const weeklyCompletionRate = calculateWeeklyCompletionRate();
+    const overallCompletionRate = calculateOverallCompletionRate();
+    const longestStreak = Math.max(...habits.map(h => h.streak), 0);
+
+    // Calculate level and points
+    const totalPoints = habits.reduce((sum, h) => sum + h.streak * 10, 0);
+    const currentLevel = Math.floor(totalPoints / 100) + 1;
+
+    const profileCard = document.getElementById('profileContent');
+    profileCard.innerHTML = `
+        <div class="profile-header">
+            <div class="profile-avatar">${currentUser.avatar}</div>
+            <div>
+                <h2>${currentUser.name}</h2>
+                <p>${currentUser.email}</p>
+                <p style="font-size: 0.8rem; margin-top: 0.5rem;">Member since ${new Date(currentUser.createdAt).toLocaleDateString()}</p>
+            </div>
+        </div>
+
+        <div class="profile-stats">
+            <div class="profile-stat">
+                <div class="profile-stat-label">Level</div>
+                <div class="profile-stat-value">${currentLevel}</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Points</div>
+                <div class="profile-stat-value">${totalPoints}</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Habits</div>
+                <div class="profile-stat-value">${totalHabits}</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Streak</div>
+                <div class="profile-stat-value">${longestStreak}</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Overall</div>
+                <div class="profile-stat-value">${overallCompletionRate}%</div>
+            </div>
+            <div class="profile-stat">
+                <div class="profile-stat-label">Weekly</div>
+                <div class="profile-stat-value">${weeklyCompletionRate}%</div>
+            </div>
+        </div>
+    `;
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+
+function toggleReminderTime() {
+    const reminderTimeGroup = document.getElementById('reminderTimeGroup');
+    if (document.getElementById('reminderToggle').checked) {
+        reminderTimeGroup.classList.remove('hidden');
+    } else {
+        reminderTimeGroup.classList.add('hidden');
+    }
+}
+
+function updateColorPreview() {
+    const color = document.getElementById('habitColor').value;
+    document.getElementById('colorPreview').style.backgroundColor = color;
+}
+
+document.getElementById('habitColor').addEventListener('change', updateColorPreview);
+
+function requestNotifications() {
+    if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+            new Notification('Habit Tracker', {
+                body: 'Notifications are already enabled!',
+                icon: 'icon.png',
+            });
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    new Notification('Notifications Enabled!', {
+                        body: 'You will receive daily reminders for your habits.',
+                        icon: 'icon.png',
+                    });
+                    showToast('Notifications enabled!', 'success');
+                }
+            });
         }
     } else {
-        // User is signed out
-        loginSection.classList.remove("hidden");
-        appContainer.classList.add("hidden");
-        
-        // Clear habit tracker instance
-        if (window.habitTracker) {
-            window.habitTracker = null;
-        }
-    }
-});
-
-// ===============================
-// SIGN OUT FUNCTION
-// ===============================
-async function signOut() {
-    try {
-        await auth.signOut();
-        showToast("Signed out successfully", "success");
-    } catch (error) {
-        console.error("Sign out error:", error);
-        showToast("Sign out failed", "error");
+        showToast('Notifications not supported', 'error');
     }
 }
 
-// Add sign out button to profile tab
-function addSignOutButton() {
-    const profileTab = document.getElementById('profileTab');
-    const signOutBtn = document.createElement('button');
-    signOutBtn.className = 'settings-button danger';
-    signOutBtn.textContent = 'Sign Out';
-    signOutBtn.addEventListener('click', signOut);
-    
-    const profileContent = document.getElementById('profileContent');
-    profileContent.appendChild(signOutBtn);
-}
-// ===============================
-// TOAST FUNCTION
-// ===============================
-function showToast(message, type = "info") {
-    const container = document.getElementById("toastContainer");
+function exportData() {
+    const data = {
+        user: currentUser,
+        habits: habits,
+        exportDate: new Date().toISOString(),
+        version: '2.0',
+    };
 
-    const toast = document.createElement("div");
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `habit-tracker-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Data exported successfully!', 'success');
+}
+
+function clearAllData() {
+    if (confirm('Are you sure? This will delete all habits but keep the app running.')) {
+        const batch = db.batch();
+        habits.forEach(habit => {
+            const ref = db.collection('users').doc(currentUser.id).collection('habits').doc(habit.id);
+            batch.delete(ref);
+        });
+        batch.commit()
+            .then(() => {
+                showToast('All habits cleared', 'success');
+            })
+            .catch((error) => {
+                console.error('Error clearing habits:', error);
+                showToast(error.message, 'error');
+            });
+    }
+}
+
+function resetApp() {
+    if (confirm('Are you sure? This will reset the entire app to its initial state.')) {
+        handleLogout();
+    }
+}
+
+function showLogoutConfirm() {
+    document.getElementById('logoutModal').classList.remove('hidden');
+}
+
+function closeLogoutModal() {
+    document.getElementById('logoutModal').classList.add('hidden');
+}
+
+// ============================================
+// UI UTILITIES
+// ============================================
+
+function updateGreeting() {
+    const hour = new Date().getHours();
+    let greeting = 'Good Morning';
+
+    if (hour >= 12 && hour < 18) {
+        greeting = 'Good Afternoon';
+    } else if (hour >= 18) {
+        greeting = 'Good Evening';
+    }
+
+    const greetingTitle = document.getElementById('greetingTitle');
+    if (greetingTitle) {
+        greetingTitle.textContent = greeting + ', ' + (currentUser?.name?.split(' ')[0] || 'User');
+    }
+
+    const dateDisplay = document.getElementById('dateDisplay');
+    if (dateDisplay) {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateDisplay.textContent = new Date().toLocaleDateString('en-US', options);
+    }
+}
+
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+// Update color layout trigger
+updateColorPreview();
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        <span>${message}</span>
+    `;
 
     container.appendChild(toast);
 

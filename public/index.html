@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Daily Habit Tracker - Track your habits, build streaks, and achieve your goals with beautiful gamification">
+    <meta name="description" content="Daily Habit Tracker Pro - Track your habits, build streaks, and achieve your goals with beautiful gamification">
     <meta name="theme-color" content="#0a0e27">
-    <title>Daily Habit Tracker</title>
+    <title>Daily Habit Tracker Pro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     
     <!-- Firebase SDK -->
@@ -17,13 +18,12 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-    
     <div id="app" class="min-h-screen bg-background text-foreground">
-         <!-- Login Section -->
+        <!-- Login Section -->
         <div id="loginSection" class="login-section">
             <div class="login-container">
                 <div class="login-header">
-                    <h1 class="login-title">Daily Habit Tracker</h1>
+                    <h1 class="login-title"><i class="fas fa-bolt"></i> Daily Habit Tracker</h1>
                     <p class="login-subtitle">Track your habits. Build your streaks. Achieve your goals.</p>
                 </div>
 
@@ -37,8 +37,18 @@
                             </div>
                             <div class="form-group">
                                 <label for="loginPassword">Password</label>
-                                <input type="password" id="loginPassword" placeholder="••••••••" required>
-                               
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('loginPassword')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="rememberMe">
+                                    <span>Remember me</span>
+                                </label>
                             </div>
                             <button type="submit" class="btn-login">Sign In</button>
                         </form>
@@ -59,13 +69,21 @@
                             </div>
                             <div class="form-group">
                                 <label for="signupPassword">Password</label>
-                                <input type="password" id="signupPassword" placeholder="••••••••" required>
-                                
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="signupPassword" placeholder="••••••••" required>
+                                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('signupPassword')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label for="signupConfirmPassword">Confirm Password</label>
-                                <input type="password" id="signupConfirmPassword" placeholder="••••••••" required>
-                                
+                                <div class="password-input-wrapper">
+                                    <input type="password" id="signupConfirmPassword" placeholder="••••••••" required>
+                                    <button type="button" class="toggle-password" onclick="togglePasswordVisibility('signupConfirmPassword')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <button type="submit" class="btn-login">Create Account</button>
                         </form>
@@ -76,89 +94,120 @@
             </div>
         </div>
 
-           
-        <!-- Hero Section -->
-        <div id="heroSection" class="hero-section">
-            <div class="hero-content">
-                <h1 class="hero-title">Daily Habit Tracker</h1>
-                <p class="hero-subtitle">Simple. Streak Counter. Works Offline.</p>
-                <button id="getStartedBtn" class="cta-button">+ Get Started</button>
-            </div>
-        </div>
-
         <!-- Main App Container -->
-        <div class="app-container hidden" id="appContainer"class="hidden">
+        <div class="app-container hidden" id="appContainer">
             <!-- Sidebar Navigation -->
-             <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
-      <div class="overlay" onclick="toggleSidebar()"></div>
+            <header class="mobile-navbar">
+    <button class="menu-toggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+    <h1 id="mobilePageTitle" class="mobile-page-title">Dashboard</h1>
+</header>
+
+<div class="overlay" onclick="toggleSidebar()"></div>
+
             <nav class="sidebar">
                 <div class="sidebar-header">
-                    <h2 class="sidebar-title">Daily Habit Tracker</h2>
+                    <h2 class="sidebar-title"><i class="fas fa-bolt"></i> Habit Tracker</h2>
+                    <p class="sidebar-subtitle">Pro Edition</p>
                 </div>
+
                 <ul class="nav-list">
                     <li>
                         <button class="nav-item active" data-tab="dashboard">
-                            <span class="nav-icon">📊</span>
+                            <i class="fas fa-th-large"></i>
                             <span>Dashboard</span>
                         </button>
                     </li>
                     <li>
                         <button class="nav-item" data-tab="stats">
-                            <span class="nav-icon">📈</span>
-                            <span>Stats</span>
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Statistics</span>
                         </button>
                     </li>
                     <li>
                         <button class="nav-item" data-tab="settings">
-                            <span class="nav-icon">⚙️</span>
+                            <i class="fas fa-cog"></i>
                             <span>Settings</span>
                         </button>
                     </li>
                     <li>
                         <button class="nav-item" data-tab="profile">
-                            <span class="nav-icon">👤</span>
+                            <i class="fas fa-user"></i>
                             <span>Profile</span>
                         </button>
                     </li>
                 </ul>
+
+                <!-- Account Section -->
+                <div class="account-section">
+                    <div class="user-card">
+                        <div class="user-avatar" id="userAvatar">U</div>
+                        <div class="user-info">
+                            <p class="user-name" id="userName">User</p>
+                            <p class="user-email" id="userEmail">user@email.com</p>
+                        </div>
+                    </div>
+                    <div class="online-indicator">
+                        <span class="online-dot"></span>
+                        <span>Online</span>
+                    </div>
+                    <button id="logoutBtn" class="btn-logout">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
             </nav>
 
             <!-- Main Content Area -->
             <div class="content-area">
                 <!-- Dashboard Tab -->
                 <div id="dashboardTab" class="tab-content active">
+                    <div class="greeting-section">
+                        <h1 id="greetingTitle" class="greeting-title">Good Evening, johnmaraledon823</h1>
+                        <p id="dateDisplay" class="greeting-date">Monday, May 25, 2026</p>
+                    </div>
+
                     <div class="tab-header">
                         <div>
                             <h2 class="section-title">Dashboard</h2>
                             <p class="section-subtitle">Track your daily progress</p>
                         </div>
-                        <button id="addHabitBtn" class="add-habit-btn">+ Add Habit</button>
+                        <button id="addHabitBtn" class="add-habit-btn-top-right">
+                            <i class="fas fa-plus"></i> Add Habit
+                        </button>
                     </div>
 
-                    <!-- Mood Tracker -->
-                    <div id="moodTracker" class="glass-card mood-tracker hidden">
-                        <h3 class="card-title">How are you feeling today?</h3>
-                        <div class="mood-buttons">
-                            <button class="mood-btn" data-mood="1" title="Terrible">😢</button>
-                            <button class="mood-btn" data-mood="2" title="Bad">😕</button>
-                            <button class="mood-btn" data-mood="3" title="Okay">😐</button>
-                            <button class="mood-btn" data-mood="4" title="Good">🙂</button>
-                            <button class="mood-btn" data-mood="5" title="Excellent">😄</button>
+                    <!-- Quick Stats -->
+                    <div class="quick-stats">
+                        <div class="stat-card">
+                            <p class="stat-label">Today's Progress</p>
+                            <p class="stat-value"><span id="completedToday">0</span>/<span id="totalHabits">0</span></p>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Habit Suggestions -->
-                    <div id="suggestionsContainer" class="glass-card suggestions-card hidden">
-                        <h3 class="card-title">💡 Suggested Habits</h3>
-                        <div id="suggestionsList" class="suggestions-list"></div>
+                        <div class="stat-card">
+                            <p class="stat-label">Total Habits</p>
+                            <p class="stat-value" id="totalHabitsCard">0</p>
+                            <p class="stat-subtitle">Active habits</p>
+                        </div>
+                        <div class="stat-card">
+                            <p class="stat-label">Longest Streak</p>
+                            <div class="streak-display">
+                                <i class="fas fa-fire"></i>
+                                <p class="stat-value" id="longestStreakCard">0</p>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Empty State -->
                     <div id="emptyState" class="glass-card empty-state">
-                        <div class="empty-icon">⚡</div>
+                        <div class="empty-icon"><i class="fas fa-bolt"></i></div>
                         <h3 class="empty-title">No habits yet</h3>
                         <p class="empty-subtitle">Create your first habit to get started on your journey to success!</p>
-                        <button id="createFirstHabitBtn" class="cta-button">+ Create First Habit</button>
+                        <button id="createFirstHabitBtn" class="cta-button">
+                            <i class="fas fa-plus"></i> Create First Habit
+                        </button>
                     </div>
 
                     <!-- Habits Grid -->
@@ -174,15 +223,15 @@
                         </div>
                     </div>
 
-                    <!-- Weekly Chart -->
-                    <div id="weeklyChart" class="glass-card weekly-chart"></div>
-
                     <!-- Stats Grid -->
                     <div id="statsGrid" class="stats-grid"></div>
 
+                    <!-- Weekly Chart -->
+                    <div id="weeklyChart" class="glass-card weekly-chart"></div>
+
                     <!-- Badges Section -->
                     <div id="badgesSection" class="glass-card badges-section">
-                        <h3 class="card-title">🏆 Badges & Achievements</h3>
+                        <h3 class="card-title"><i class="fas fa-trophy"></i> Badges & Achievements</h3>
                         <div id="badgesList" class="badges-list"></div>
                     </div>
                 </div>
@@ -196,30 +245,88 @@
                         </div>
                     </div>
 
-                    <div class="glass-card settings-panel">
-                        <!-- Notifications -->
-                        <div class="settings-section">
-                            <h3 class="settings-title">🔔 Notifications</h3>
-                            <button id="notificationBtn" class="settings-button">Enable Notifications</button>
-                        </div>
-
-                        <!-- Data Management -->
-                        <div class="settings-section border-top">
-                            <h3 class="settings-title">💾 Data Management</h3>
-                            <div class="button-group">
-                                <button id="exportBtn" class="settings-button">Export Data</button>
-                                <button id="clearBtn" class="settings-button danger">Clear Data</button>
-                                <button id="resetBtn" class="settings-button danger">Reset App</button>
+                    <div class="settings-container">
+                        <!-- Notifications Card -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon notifications-icon">
+                                    <i class="fas fa-bell"></i>
+                                </div>
+                                <div class="settings-card-content">
+                                    <h3 class="settings-card-title">Notifications</h3>
+                                    <p class="settings-card-description">Get reminders for your daily habits</p>
+                                </div>
                             </div>
+                            <button id="notificationBtn" class="settings-card-button">Enable</button>
                         </div>
 
-                        <!-- About -->
-                        <div class="settings-section border-top">
-                            <h3 class="settings-title">ℹ️ About</h3>
-                            <p class="settings-text">Daily Habit Tracker v1.0</p>
-                            <p class="settings-text">Built with heart for habit builders</p>
-                            <p class="settings-text">Frontend Developer: John Mar Aledon</p>
-                            <p class="settings-text">Backend Developer: Kent Ivan Lubas</p>
+                        <!-- Appearance Card -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon appearance-icon">
+                                    <i class="fas fa-palette"></i>
+                                </div>
+                                <div class="settings-card-content">
+                                    <h3 class="settings-card-title">Appearance</h3>
+                                    <p class="settings-card-description">Dark theme (optimized)</p>
+                                </div>
+                            </div>
+                            <div class="theme-indicator active">Active</div>
+                        </div>
+
+                        <!-- Data Export Card -->
+                        <div class="settings-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon export-icon">
+                                    <i class="fas fa-download"></i>
+                                </div>
+                                <div class="settings-card-content">
+                                    <h3 class="settings-card-title">Export Data</h3>
+                                    <p class="settings-card-description">Download your habits as JSON</p>
+                                </div>
+                            </div>
+                            <button id="exportBtn" class="settings-card-button">Export</button>
+                        </div>
+
+                        <!-- Clear Data Card -->
+                        <div class="settings-card danger-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon clear-icon">
+                                    <i class="fas fa-trash"></i>
+                                </div>
+                                <div class="settings-card-content">
+                                    <h3 class="settings-card-title">Clear All Habits</h3>
+                                    <p class="settings-card-description">Remove all habits (cannot be undone)</p>
+                                </div>
+                            </div>
+                            <button id="clearBtn" class="settings-card-button danger-button">Clear</button>
+                        </div>
+
+                        <!-- Reset App Card -->
+                        <div class="settings-card danger-card">
+                            <div class="settings-card-header">
+                                <div class="settings-card-icon reset-icon">
+                                    <i class="fas fa-redo"></i>
+                                </div>
+                                <div class="settings-card-content">
+                                    <h3 class="settings-card-title">Reset App</h3>
+                                    <p class="settings-card-description">Logout and reset everything</p>
+                                </div>
+                            </div>
+                            <button id="resetBtn" class="settings-card-button danger-button">Reset</button>
+                        </div>
+
+                        <!-- About Section -->
+                        <div class="settings-about">
+                            <div class="about-header">
+                                <i class="fas fa-info-circle"></i>
+                                <h3>About</h3>
+                            </div>
+                            <div class="about-content">
+                                <p class="about-title">Daily Habit Tracker Pro</p>
+                                <p class="about-version">Version 2.0</p>
+                                <p class="about-description">Built with passion for habit builders. Track your daily progress, build streaks, and achieve your goals. <br>Front End Developer: <a href="https://www.facebook.com/john.mar.aledon.2024/">John Mar Aledon</a><br>Back End Developer:<a href="https://www.facebook.com/kentivan.lubas"> Kent Ivan Lubas</a></p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -245,7 +352,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Add New Habit</h2>
-                <button id="closeModalBtn" class="close-btn">✕</button>
+                <button id="closeModalBtn" class="close-btn"><i class="fas fa-times"></i></button>
             </div>
             <form id="habitForm" class="modal-form">
                 <div class="form-group">
@@ -274,11 +381,37 @@
                     </select>
                 </div>
 
+                <!-- Reminder Section -->
+                <div class="form-group reminder-section">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="reminderToggle">
+                        <span><i class="fas fa-clock"></i> Enable Reminder</span>
+                    </label>
+                </div>
+
+                <div id="reminderTimeGroup" class="form-group hidden">
+                    <label for="reminderTime">Reminder Time</label>
+                    <input type="time" id="reminderTime" value="08:00">
+                </div>
+
                 <div class="form-actions">
                     <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
                     <button type="submit" class="btn-primary">Create Habit</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div id="logoutModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-small">
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to logout? Your habits will be saved.</p>
+            <div class="modal-actions">
+                <button id="cancelLogoutBtn" class="btn-secondary">Cancel</button>
+                <button id="confirmLogoutBtn" class="btn-danger">Logout</button>
+            </div>
         </div>
     </div>
 
