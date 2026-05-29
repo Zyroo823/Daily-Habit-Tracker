@@ -590,7 +590,8 @@ function calculateOverallCompletionRate() {
         });
     }
 
-    return totalDays > 0 ? Math.round((totalCompleted / (habits.length * totalDays)) * 100) : 0;
+    const denominator = habits.length * totalDays;
+    return denominator > 0 ? Math.round((totalCompleted / denominator) * 100) : 0;
 }
 
 // ============================================
