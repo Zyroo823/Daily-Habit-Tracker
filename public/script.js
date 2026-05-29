@@ -47,6 +47,10 @@ function setupEventListeners() {
     // Habit Management
     document.getElementById('addHabitBtn').addEventListener('click', openHabitModal);
     document.getElementById('createFirstHabitBtn').addEventListener('click', openHabitModal);
+    const mobileAddHabitBtn = document.getElementById('mobileAddHabitBtn');
+    if (mobileAddHabitBtn) {
+        mobileAddHabitBtn.addEventListener('click', openHabitModal);
+    }
     document.getElementById('habitForm').addEventListener('submit', handleAddHabit);
     document.getElementById('closeModalBtn').addEventListener('click', closeHabitModal);
     document.getElementById('cancelBtn').addEventListener('click', closeHabitModal);
@@ -468,14 +472,22 @@ function renderHabits() {
     const habitsGrid = document.getElementById('habitsGrid');
     const emptyState = document.getElementById('emptyState');
 
+    const mobileAddHabitBtn = document.getElementById('mobileAddHabitBtn');
+
     if (habits.length === 0) {
         habitsGrid.classList.add('hidden');
         emptyState.classList.remove('hidden');
+        if (mobileAddHabitBtn) {
+            mobileAddHabitBtn.classList.add('hidden');
+        }
         return;
     }
 
     habitsGrid.classList.remove('hidden');
     emptyState.classList.add('hidden');
+    if (mobileAddHabitBtn) {
+        mobileAddHabitBtn.classList.remove('hidden');
+    }
     habitsGrid.innerHTML = '';
 
     const today = new Date().toISOString().split('T')[0];

@@ -224,9 +224,10 @@ html, body {
     gap: var(--spacing-md);
 }
 
-.login-title i {
-    font-size: 2rem;
-    color: var(--accent-cyan);
+.brand-icon {
+    width: 2.1rem;
+    height: 2.1rem;
+    object-fit: contain;
 }
 
 .login-subtitle {
@@ -710,6 +711,54 @@ html, body {
 .add-habit-btn-top-right:hover {
     box-shadow: 0 0 30px rgba(124, 92, 255, 0.5);
     transform: translateY(-2px);
+}
+
+.mobile-add-habit-btn {
+    display: none;
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    width: 3.8rem;
+    height: 3.8rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-cyan));
+    color: white;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1100;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    position: fixed;
+}
+
+.mobile-add-habit-btn::after {
+    content: attr(title);
+    position: absolute;
+    right: 110%;
+    bottom: 50%;
+    transform: translateY(50%);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    background: rgba(10, 14, 39, 0.95);
+    color: white;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+}
+
+.mobile-add-habit-btn:hover::after {
+    opacity: 1;
+    transform: translateY(50%) translateX(-0.25rem);
+}
+
+.mobile-add-habit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.32);
 }
 
 /* ============================================
@@ -1800,6 +1849,14 @@ html, body {
 @media (max-width: 480px) {
     .login-title {
         font-size: 1.5rem;
+    }
+
+    .mobile-add-habit-btn {
+        display: flex;
+    }
+
+    .add-habit-btn-top-right {
+        display: none;
     }
 
     .section-title {
