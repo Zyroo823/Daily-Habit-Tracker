@@ -258,6 +258,7 @@ function updateUserDisplay() {
         document.getElementById('userName').textContent = currentUser.name;
         document.getElementById('userEmail').textContent = currentUser.email;
         document.getElementById('userAvatar').textContent = currentUser.avatar;
+        updateGreeting();
     }
 }
 
@@ -743,6 +744,9 @@ function renderBadges(longestStreak, totalHabits, overallCompletionRate) {
 // ============================================
 
 function renderProfile() {
+    if (!currentUser) {
+        return; // Exit if user data not loaded yet
+    }
     const totalHabits = habits.length;
     const weeklyCompletionRate = calculateWeeklyCompletionRate();
     const overallCompletionRate = calculateOverallCompletionRate();
